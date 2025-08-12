@@ -1,0 +1,1067 @@
+---
+title: "experimentation"
+author: "Emiliano"
+date: "2025-05-31"
+output: html_document
+---
+
+**Ajustement du Modèle non linéaire**
+
+D'après le (R\^2) ajusté du modèle, nous pouvons dire que 91.95 % de la variance du fonds relative à la transition écologique est expliquée par le modèle. Le modèle semble donc avoir une très bonne qualité d'ajustement.
+
+**Satisfaction globale du modèle non linéaire** : **Test de Fisher global**
+
+On utilise le test de Fisher : H0 : tous les coefficients sont nuls sauf la constante, c'est-à-dire (\beta\_1 = \beta\_2 = \beta\_3 = \beta\_4 = \beta\_5 = \beta\_6 = 0)
+
+D'après l'analyse du test de Fisher global, la statistique du test de Fisher (F\_{obs} = 703) et la p-value: \< 0.01 (1%) donc on rejette l'hypothèse nulle, il y a au moins un coefficient différent de zéro, conclusion *le modèle est globalement satisfaisant*.
+
+**Significativité des variables** : **Test de Student**
+
+
+
+```{r}
+# xy <- cbind(x=df_fonds_EDMD$p_pop, y=df_fonds_EDMD$taux_subvention)
+# 
+# plot(xy, cex=cible_var/1e+08, xlim=c(0,25000), ylim=c(0,0.9), col=rev(terrain.colors(50)))
+```
+
+
+
+
+```{r, warning= FALSE, message= FALSE}
+# v <- vect(xy)
+# v$cible_var <- cible_var
+# r1 <- rast(ncol=1, nrow=4, xmin=0, xmax=25000, ymin=0, ymax=25000) #4 lignes
+# r1 <- rasterize(v, r1, "cible_var", mean)
+# r2 <- rast(ncol=4, nrow=1, xmin=0, xmax=25000, ymin=0, ymax=25000) #4 colonnes
+# r2 <- rasterize(v, r2, "cible_var", mean)
+# r3 <- rast(ncol=2, nrow=2, xmin=0, xmax=25000, ymin=0, ymax=25000) #damier de 2x2
+# r3 <- rasterize(v, r3, "cible_var", mean)
+# r4 <- rast(ncol=3, nrow=3, xmin=0, xmax=25000, ymin=0, ymax=25000) #damier de 3x3
+# r4 <- rasterize(v, r4, "cible_var", mean)
+# r5 <- rast(ncol=5, nrow=5, xmin=0, xmax=25000, ymin=0, ymax=25000) #damier de 5x5
+# r5 <- rasterize(v, r5, "cible_var", mean)
+# r6 <- rast(ncol=10, nrow=10, xmin=0, xmax=25000, ymin=0, ymax=25000) #damier de 10x10
+# r6 <- rasterize(v, r6, "cible_var", mean)
+# par(mfrow=c(2,3), las=1)
+# plot(r1); plot(r2); plot(r3); plot(r4); plot(r5); plot(r6)
+```
+
+```{r, warning= FALSE, message= FALSE}
+# par(mfrow=c(1,3), las=1)
+# hist(r4, col=rev(terrain.colors(10)))
+# hist(r5, main="", col=rev(terrain.colors(10)))
+# hist(r6, main="", col=rev(terrain.colors(10)))
+```
+
+
+
+
+```{r, warning= FALSE, message= FALSE}
+# 
+# # Préparation du recipe et modèle
+# 
+# data_recipe <- recipe(cp_EDMD ~ ., data = data_train)
+# 
+# lm_model <- linear_reg() |>
+#   set_engine("lm") |>
+#   set_mode("regression")
+# 
+# # Préparation du workflow
+# 
+# lm_wf <- workflow() |>
+#   add_model(lm_model) |>
+#   add_recipe(data_recipe)
+# 
+# # Exécution du workflow sur l’échantillon d’entraînement
+# 
+# lm_fit <- lm_wf |>
+#   fit(data=data_train)
+ 
+```
+
+Voici un exemple en R, utilisant le package spatialreg (successeur de spdep) pour estimer à la fois un modèle spatial autorégressif (SAR) et un modèle à erreurs spatiales (SEM) sur ta variable standardisée cp_EDMD_std. Il te suffit d’ajuster la formule (~ cov1 + cov2 + …) avec tes covariables réelles.
+```{r}
+# # 1. Charger les packages nécessaires
+# library(sf)           # pour gérer les objets spatiaux
+# library(spdep)        # pour construire la matrice de poids
+# library(spatialreg)   # pour estimer SAR et SEM
+# 
+# # 2. Préparer l'objet sf (si ce n'est déjà fait)
+# #    Supposons que communes_sf est ton objet sf avec les mêmes unités spatiales
+# #    et que df_fonds_EDMD_for_carto est joint à communes_sf
+# communes_sf$cp_EDMD_std <- df_fonds_EDMD_for_carto$cp_EDMD_std
+# 
+# # 3. Construire la liste de poids (si tu as déjà 'communes.lw', passe à l'étape suivante)
+# #    Ici un exemple à partir d'une contiguïté reine :
+# nb <- poly2nb(communes_sf)
+# communes.lw <- nb2listw(nb, style = "W", zero.policy = TRUE)
+# 
+# # 4. Formule du modèle
+# #    Remplace cov1, cov2, ... par les noms de tes variables explicatives
+# fmla <- cp_EDMD_std ~ cov1 + cov2 + cov3
+# 
+# # 5. Modèle Spatial Autoregressif (SAR)
+# sar_mod <- lagsarlm(
+#   formula   = fmla,
+#   data      = communes_sf,
+#   listw     = communes.lw,
+#   zero.policy = TRUE,      # pour gérer les polygones isolés s'il y en a
+#   method    = "eigen"      # méthode de résolution (rapide si réseau connexe)
+# )
+# summary(sar_mod)
+# 
+# # 6. Modèle à Erreurs Spatiales (SEM)
+# sem_mod <- errorsarlm(
+#   formula   = fmla,
+#   data      = communes_sf,
+#   listw     = communes.lw,
+#   zero.policy = TRUE
+# )
+# summary(sem_mod)
+# 
+# # 7. Comparaison des modèles
+# #    On peut comparer AIC, BIC ou log-likelihood
+# AIC(sar_mod, sem_mod)
+# BIC(sar_mod, sem_mod)
+
+```
+
+```{r}
+
+# 2. Load the conflicted package first to manage masking
+library(conflicted)
+
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag",    "dplyr")
+conflict_prefer("select", "dplyr")
+conflict_prefer("union",    "base")
+conflict_prefer("intersect","base")
+conflict_prefer("setdiff",  "base")
+conflict_prefer("setequal", "base")
+conflict_prefer("select", "dplyr")  # keep select
+conflict_prefer("area",   "terra")
+conflict_prefer("extract", "tidyr")
+conflict_prefer("step", "recipes")
+conflict_prefer("discard", "scales")
+conflict_prefer("spec", "readr")
+
+# 4. Load core libraries
+library(dplyr)
+library(tidyverse)
+library(stargazer)
+library(ggplot2)
+library(rnaturalearth)
+library(sf)
+library(viridis)
+library(corrplot)
+
+# 5. Load spatial/ecological analysis packages
+library(rnaturalearthdata)
+library(raster)
+library(terra)
+library(spatstat)
+library(spdep)
+
+# 6. Load modeling and visualization packages
+library(factoextra)
+library(FactoMineR)
+library(umap)
+library(tmap)
+library(dbscan)
+library(mice)
+library(leaps)
+library(bestglm)
+library(tidymodels)
+library(caret)
+library(patchwork)
+library(RColorBrewer)
+library(yardstick)
+library(vip)
+library(tidymodels)
+
+library(keras)
+library(parsnip)
+
+library(xgboost)
+library(tune)
+library(dials)
+library(workflows)
+library(recipes)
+```
+```{r}
+set.seed(1234)
+df_fonds_EDMD= read.csv("/home/emiliano/Documents/MASTER_MAS/ALTERNANCE/RAPPORT APPRENTISSAGE/Partie 2/FONDS EDMD/DATA_PRETREATMENT/fonds_vert.csv", sep = ",", dec= ".")
+
+# Création de variable binaire relative à la variable cible
+df_fonds_EDMD$statut_finance_ecolo_dmd <- as.numeric(df_fonds_EDMD$cp_EDMD > 0)
+
+```
+
+
+```{r}
+# Transformation des colonnes a double modalité en facteur
+
+df_fonds_EDMD <- df_fonds_EDMD %>%
+  mutate(across(c(gridens7, gare_tgv, ecoquartiers, climat, beneficiaire_prog, statut_finance_ecolo_dmd), as.factor)) %>% 
+  dplyr::select(where(~ n_distinct(.) > 1))
+
+n = dim(df_fonds_EDMD)[1]
+p = dim(df_fonds_EDMD)[2]
+
+col_name= c() 
+total_na= c()
+
+for (j in c(1:p)) {
+  tot_na= sum(is.na(df_fonds_EDMD[, j]))
+  if(tot_na > 0){
+  col_name= c(col_name, colnames(df_fonds_EDMD)[j])
+  total_na= c(total_na, tot_na)
+  }
+}
+
+data.frame("columns_names"=
+                   col_name,
+           "Total_na" = total_na)
+
+set.seed(1234)
+# Imputation multiple par chaînes de Markov (valeurs plausibles)
+imputed_data <- mice(df_fonds_EDMD, method = "rf", m = 5)
+df_fonds_EDMD <- complete(imputed_data)
+
+```
+
+# Modèle de prédiction
+
+
+```{r}
+dim(df_fonds_EDMD)
+summary(df_fonds_EDMD$statut_finance_ecolo_dmd)
+```
+
+## Préparation des données
+
+```{r}
+
+df_fonds_EDMD= df_fonds_EDMD %>%
+  dplyr::select(-c("code_com","code_dept","code_arr","lib_com","lib_arr","lib_dept")) %>%
+  mutate(across(starts_with(c("ae_", "cp_")), ~ round(.x, 1))) %>%
+  mutate(across(starts_with(c("ae_", "cp_")), ~ .x / 1000))
+
+
+df_fonds_EDMD_Finance= df_fonds_EDMD  %>% filter(statut_finance_ecolo_dmd == 1) %>% dplyr:: select(-c(statut_finance_ecolo_dmd))
+
+df_fonds_EDMD_non_finnace= df_fonds_EDMD  %>% filter(statut_finance_ecolo_dmd == 0)  %>% dplyr:: select(-c(statut_finance_ecolo_dmd))
+
+#df_fonds_EDMD<- df_fonds_EDMD |> dplyr:: select(-c(gridens7, gare_tgv, ecoquartiers, climat, beneficiaire_prog, statut_finance_ecolo_dmd))
+                                
+data_split_EDMD <- initial_split(df_fonds_EDMD_Finance, prop = 2/3)
+data_EDMD.train <- training(data_split_EDMD)
+data_EDMD.test  <- testing(data_split_EDMD)
+```
+
+# Modèle de base(fondamental)
+
+
+## Regression linéaire simple
+
+```{r}
+
+data_EDMD.train_rs <- training(data_split_EDMD) %>% dplyr:: select(cp_EDMD, taux_subvention)
+data_EDMD.test_rs  <- testing(data_split_EDMD) %>% dplyr:: select(cp_EDMD, taux_subvention)
+
+# Création du workflow
+
+lm_model <- linear_reg() |>
+  set_engine("lm") |>
+  set_mode("regression")
+
+# Reccette de transformation des variables explicatif 
+
+data_recipe <- recipe(cp_EDMD ~ ., data = data_EDMD.train_rs) %>%
+  # Variables catégorielles en dummy
+  step_dummy(all_nominal_predictors()) %>%
+  step_zv(all_predictors()) %>% # Supprimer les variables à variance nulle
+  step_normalize(all_numeric_predictors())   # Normaliser les variables numériques
+
+# Vérifier et voir les transformations appliquées
+
+data_recipe_prepped <- prep(data_recipe)
+
+# Workflow
+lm_wf <- workflow() %>%
+  add_model(lm_model) %>%
+  add_recipe(data_recipe) 
+
+# Performance des modeles d'entrainement
+model_lm <-  lm_wf |> 
+  fit(data= data_EDMD.train_rs)
+
+# significativité des variables
+#model_lm |> tidy() 
+
+# Estimation du risque quadratique sur les données test :
+
+augment(model_lm, new_data = data_EDMD.test_rs) |>
+  rmse(truth = cp_EDMD, estimate = .pred)
+
+# Prédiction sur les données de test
+preds_lm <- predict(model_lm, data_EDMD.test_rs) %>%
+  bind_cols(data_EDMD.test_rs %>% dplyr::select(cp_EDMD))
+
+# Évaluation de la précision
+
+metrics(data = preds_lm, truth = cp_EDMD, estimate = .pred)
+```
+
+
+## Arbre de décision(sans limite de profondeur)
+
+```{r}
+
+# Définition de l'arbre de décision (régression)
+tree_spec <- decision_tree(
+  cost_complexity = 0.01, # Paramètre de complexité (alpha)
+  min_n = NULL,              # Taille minimale des noeuds
+  tree_depth = NULL         # Profondeur max
+) %>%
+  set_engine("rpart") %>%
+  set_mode("regression")
+
+# Workflow
+tree_wf <- workflow() %>%
+  add_model(tree_spec) %>%
+  add_formula(cp_EDMD ~ .)
+
+# Ajustement direct sans validation croisée
+arbre_final_EDMD <- tree_wf %>%
+  fit(data = data_EDMD.train)
+
+# Prédictions sur les données de test
+preds_tree <- predict(arbre_final_EDMD, data_EDMD.test) %>%
+  bind_cols(data_EDMD.test %>% dplyr::select(cp_EDMD))
+
+# Évaluation
+metrics(data = preds_tree, truth = cp_EDMD, estimate = .pred)
+
+
+
+```
+
+
+```{r}
+# Importance des variables
+modele_tree <- extract_fit_parsnip(arbre_final_EDMD)
+vip(modele_tree$fit)
+```
+
+
+## K plus proche voisins
+
+```{r}
+# Définition du modèle KNN (régression)
+knn_spec <- nearest_neighbor(
+  neighbors = 2,       # nombre de voisins k
+  weight_func = "rectangular", # pondération uniforme
+  dist_power = 2       # distance euclidienne
+) %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+
+# Workflow
+knn_wf <- workflow() %>%
+  add_model(knn_spec) %>%
+  add_formula(cp_EDMD ~ .)
+
+# Ajustement direct sur tout l'ensemble d'entraînement
+knn_final_EDMD <- knn_wf %>%
+  fit(data = data_EDMD.train)
+
+# Prédictions sur les données de test
+preds_knn <- predict(knn_final_EDMD, data_EDMD.test) %>%
+  bind_cols(data_EDMD.test %>% dplyr::select(cp_EDMD))
+
+# Évaluation des performances
+metrics(data = preds_knn, truth = cp_EDMD, estimate = .pred)
+
+```
+
+# Perceptron 
+
+```{r}
+# Préparation des données
+Xtrain_mat <- as.matrix(data_EDMD.train %>% dplyr::select(-cp_EDMD)) %>% 
+  array_reshape(., c(nrow(.),ncol(.))) %>% 
+  as.numeric()
+
+Ytrain_mat <- as.matrix(data_EDMD.train %>% dplyr::select(cp_EDMD)) %>% 
+  array_reshape(., c(nrow(.),ncol(.))) %>% 
+  as.numeric()
+
+# Préparation des données de test (correction)
+
+Xtest_mat <- as.matrix(data_EDMD.test %>% dplyr::select(-cp_EDMD)) %>% 
+  as.numeric() 
+
+Ytest_mat <- as.vector(data_EDMD.test$cp_EDMD) 
+
+
+#  Dimension des données 
+dim(Xtrain_mat) <- c(nrow(data_EDMD.train), ncol(data_EDMD.train) - 1)
+
+dim(Ytrain_mat) <- c(nrow(data_EDMD.train), 1)
+
+dim(Xtest_mat) <- c(nrow(data_EDMD.test), ncol(data_EDMD.test) - 1)
+
+
+# Construction du modèle séquentiel 
+
+model_rn <- keras_model_sequential()
+model_rn$add(layer_dense(units = 1, input_shape = c(112), activation = "linear"))
+
+# Compilation du modèle (syntaxe corrigée)
+model_rn$compile(
+  optimizer = "adam",
+  loss = "mean_squared_error",
+  metrics = list("mse")
+)
+
+# Affichage du résumé du modèle
+model_rn$summary()
+
+# Entraînement du modèle
+history <- model_rn$fit(
+  x = Xtrain_mat,
+  y = Ytrain_mat,
+  epochs = 300L,  
+  batch_size = 5L,
+  validation_split = NULL,
+  verbose = NULL
+)
+
+
+# Prédictions sur l'échantillon test
+predictions <- model_rn$predict(Xtest_mat)
+
+# Valeurs réelles (conversion en vecteur)
+predictions <- as.vector(predictions)
+actual <- as.vector(Ytest_mat)
+
+# Calcul des métriques de performance
+
+# 1. R² (coefficient de détermination)
+ss_res <- sum((actual - predictions)^2)  # Somme des carrés des résidus
+ss_tot <- sum((actual - mean(actual))^2)  # Somme totale des carrés
+rsq <- 1 - (ss_res / ss_tot)
+
+# 2. RMSE (Root Mean Square Error)
+rmse <- sqrt(mean((actual - predictions)^2))
+
+# 3. MAE (Mean Absolute Error)
+mae <- mean(abs(actual - predictions))
+
+# Affichage des résultats
+cat("=== MÉTRIQUES DE PERFORMANCE SUR L'ÉCHANTILLON TEST ===\n")
+cat(sprintf("R² (coefficient de détermination) : %.4f\n", rsq))
+cat(sprintf("RMSE (Root Mean Square Error)     : %.4f\n", rmse))
+cat(sprintf("MAE (Mean Absolute Error)         : %.4f\n", mae))
+cat("========================================================\n")
+
+```
+
+
+
+```{r}
+library(keras)
+model <- keras_model_sequential()
+
+model$add(layer_dense(units = 1, input_shape = c(112), activation = "linear"))
+
+model$compile(loss="mean_squared_error",optimizer="adam",metrics=list("mse"))
+
+Xtrain <- as.matrix(data_EDMD.train %>% dplyr::select(-cp_EDMD)) %>% 
+  array_reshape(., c(nrow(Xtrain), ncol(Xtrain))) %>% as.numeric()
+
+Ytrain <- as.matrix(data_EDMD.train %>% dplyr::select(cp_EDMD)) %>% 
+  array_reshape(., c(nrow(Ytrain),ncol(Ytrain))) %>% as.numeric()
+
+
+dim(Xtrain) <- c(nrow(data_EDMD.train), ncol(data_EDMD.train) - 1)
+dim(Ytrain) <- c(nrow(data_EDMD.train), 1)
+
+model$fit(
+  x = Xtrain,
+  y = Ytrain,
+  epochs = 300L,  # Utiliser des entiers explicites
+  batch_size = 5L,
+  validation_split = NULL,
+  verbose = NULL
+)
+# model$fit(x=Xtrain,y=Ytrain,epochs=300,batch_size=5)
+
+prev <- model %>% predict_proba(Xtest)
+```
+
+# Modeles avec VC 
+
+
+# Foret aléatoire 
+
+```{r}
+# Forêt aléatoire(Random forest)
+
+tune_spec <- rand_forest(mtry = tune(),min_n= tune()) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("regression")
+
+rf_wf <- workflow() %>%
+  add_model(tune_spec) %>%
+  add_formula(cp_EDMD ~ .)
+
+
+#Réechantillonnage
+blocs <- vfold_cv(data_EDMD.train, v = 10,repeats = 1)
+
+rf_grid <- expand.grid(mtry= c(seq(1,110,by=5)), min_n= 5)
+
+# visualisation des erreurs
+rf_res <- rf_wf %>% tune_grid(resamples = blocs, grid = rf_grid,
+            metrics = metric_set(rmse,mae))
+
+# Ajustement final
+best_parameter_rf <- rf_res |>
+  select_best(metric="rmse")
+
+foret_finale_EDMD <- rf_wf %>%
+  finalize_workflow(list(mtry= best_parameter_rf$mtry ,min_n= best_parameter_rf$min_n)) %>%
+  fit(data= data_EDMD.train)
+
+# Prédiction sur les données de test
+preds <- predict(foret_finale_EDMD, data_EDMD.test) %>%
+  bind_cols(data_EDMD.test %>% dplyr::select(cp_EDMD))
+
+
+# Évaluation de la prévision
+
+metrics(data = preds, truth = cp_EDMD, estimate = .pred)
+
+# Importance des variables
+# Extraire le modèle entraîné du workflow
+modele_rf <- extract_fit_parsnip(foret_finale_EDMD)
+
+# Afficher directement le graphique d’importance des variables
+vip(modele_rf$fit,importance="impurity")
+```
+# Lasso 
+
++ Préparation de la recette
+
+```{r}
+regreg_recipe <- 
+  recipe(formula = cp_EDMD ~ ., data = data_EDMD.train) |> 
+  step_novel(all_nominal_predictors()) |> 
+  step_dummy(all_nominal_predictors()) |> 
+  step_zv(all_predictors()) |> 
+  step_normalize(all_predictors())
+
+#Préparation du workflow:
+lasso_model <- linear_reg() |>
+  set_mode("regression") |>
+  set_engine("glmnet") |>
+  set_args(mixture = 1,penalty = tune())
+# mixture = 1 correspond à une régression LASSO
+
+lasso_wf <- workflow() |>
+  add_recipe(regreg_recipe) |>
+  add_model(lasso_model)
+
+# Choix d’une grille d’hyperparamètres (paramètre de régularisation  \lambda) :
+
+parameters_grid <- grid_regular(penalty(range = c(-10,10)), levels = 100)
+blocs <- vfold_cv(data_EDMD.train, v = 20,repeats = 5)
+
+lasso_cv <- lasso_wf |>
+  tune_grid(resamples =  blocs, grid = parameters_grid,
+            metrics = metric_set(rmse,mae))
+
+lasso_cv %>% autoplot()
+
+# Meilleur parametre selon le RMSE:
+best_parameter <- lasso_cv |>
+  select_best(metric="rmse")
+
+#best_parameter
+
+# -Entrainement avec les meilleurs paramètres
+
+final_lasso_wf <- lasso_wf |> 
+  finalize_workflow(best_parameter)
+
+best_lasso_fit <- final_lasso_wf |>
+  fit(data_EDMD.train)
+
+# Significativité des variables explicativedans le modèle finale
+
+best_lasso_fit %>% tidy()
+
+# Evaluation de la performance du model
+
+augment(best_lasso_fit, new_data = data_EDMD.test) |>
+  rmse(truth = cp_EDMD, estimate = .pred)
+```
+
+
+
+
+# Algorithme de régression linéaire - Avec sélection de variable 
+
+```{r message=FALSE, warning=FALSE}
+# Supposons que votre variable cible s'appelle y
+y <-data_EDMD.train$cp_EDMD
+
+# Supprimez la variable cible du jeu de données
+X <- data_EDMD.train %>%
+  dplyr:: select(-cp_EDMD)
+
+# Créez une matrice de variables explicatives sans variables catégorielles multiclasse
+X_dummy <- model.matrix(~ ., data = X)[, -1]  # Supprime l’intercept
+
+combos <- findLinearCombos(X_dummy)
+
+# Supprimer les colonnes redondantes (s'il y en a)
+if (!is.null(combos$remove)) {
+  X_dummy_clean <- X_dummy[, -combos$remove]
+  message("Colonnes supprimées pour dépendance linéaire : ", 
+          paste(colnames(X_dummy)[combos$remove], collapse = ", "))
+} else {
+  X_dummy_clean <- X_dummy
+  message("Aucune dépendance linéaire détectée.")
+}
+
+
+# Créez un nouveau data.frame pour bestglm
+data_bestglm <- data.frame(X_dummy_clean, 
+  cp_EDMD = y)
+
+bestCV <- data_bestglm |>
+  bestglm(method="exhaustive",IC="CV",CVArgs=list(Method="HTF",K=10,REP=1))
+
+```
+
+
++ Significativité des variables pour le meilleur model
+
+```{r}
+glm_best_model= bestCV$BestModel
+```
+
++ Visualisation du meilleur model
+
+```{r}
+summary(glm_best_model)
+```
+
++ Valeur RMSE
+
+```{r}
+glm_best_model_pred= predict(glm_best_model,newdata=data_EDMD.test)
+
+caret::RMSE(glm_best_model_pred,data_EDMD.test$cp_EDMD)
+```
+
+
+## Reseau de neurone
+
++ Préparation du workflow
+
+
+```{r}
+# Construction du modèle séquentiel 
+
+model_rn <- keras_model_sequential()
+model_rn$add(layer_dense(units = 50, input_shape = c(112), activation = "relu"))
+model_rn$add(layer_dense(units = 50, activation = "relu"))
+model_rn$add(layer_dense(units = 1, activation = "linear"))
+
+# Compilation du modèle (syntaxe corrigée)
+model_rn$compile(
+  optimizer = "adam",
+  loss = "mean_squared_error",
+  metrics = list("rmse", "rsq")
+)
+
+# Affichage du résumé du modèle
+model_rn$summary()
+
+# Entraînement du modèle
+history <- model_rn$fit(
+  x = Xtrain_mat,
+  y = Ytrain_mat,
+  epochs = 1000L,  # Utiliser des entiers explicites
+  batch_size = 32L,
+  validation_split = 0.2,
+  verbose = 1L
+)
+```
+
+
+```{r}
+# Extraire les données d'historique
+history_df <- data.frame(
+  epoch = 1:length(history$history$loss),
+  loss = history$history$loss,
+  val_loss = history$history$val_loss,
+  mae = history$history$mae,
+  val_mae = history$history$val_mae
+)
+
+# Reshape pour ggplot
+history_long <- history_df %>%
+  tidyr::pivot_longer(cols = -epoch, names_to = "metric", values_to = "value") %>%
+  mutate(
+    type = ifelse(grepl("^val_", metric), "Validation", "Training"),
+    metric_clean = gsub("^val_", "", metric)
+  )
+
+# Plot de la perte
+p1 <- ggplot(history_long %>% filter(metric_clean == "loss"), 
+             aes(x = epoch, y = value, color = type)) +
+  geom_line() +
+  labs(title = "Évolution de la perte", x = "Époque", y = "Perte", color = "Type") +
+  theme_minimal()
+
+# Plot du MAE
+p2 <- ggplot(history_long %>% filter(metric_clean == "mae"), 
+             aes(x = epoch, y = value, color = type)) +
+  geom_line() +
+  labs(title = "Évolution du MAE", x = "Époque", y = "MAE", color = "Type") +
+  theme_minimal()
+
+print(p1)
+print(p2)
+
+```
+
+```{r}
+# Préparation des données de test (correction)
+Xtest_mat <- as.matrix(data_EDMD.test %>% dplyr::select(-cp_EDMD))
+Ytest_mat <- as.vector(data_EDMD.test$cp_EDMD)  # Utiliser as.vector()
+
+# Vérification des dimensions
+cat("Dimensions des données d'entraînement:\n")
+cat("X_train:", dim(Xtrain_mat), "\n")
+cat("Y_train:", length(Ytrain_mat), "\n")
+cat("Dimensions des données de test:\n")
+cat("X_test:", dim(Xtest_mat), "\n")
+cat("Y_test:", length(Ytest_mat), "\n")
+
+# Vérification des types de données
+cat("Type X_test:", class(Xtest_mat), "\n")
+cat("Type Y_test:", class(Ytest_mat), "\n")
+
+# S'assurer que les données de test sont au bon format
+Xtest_mat <- as.numeric(Xtest_mat)
+dim(Xtest_mat) <- c(nrow(data_EDMD.test), ncol(data_EDMD.test) - 1)
+
+```
+
+```{r}
+
+# Prédictions sur l'échantillon test
+predictions <- model_rn$predict(Xtest_mat)
+
+# Conversion des prédictions en vecteur si nécessaire
+if (is.matrix(predictions)) {
+  predictions <- as.vector(predictions)
+}
+
+# Valeurs réelles (conversion en vecteur)
+actual <- as.vector(Ytest_mat)
+
+# Calcul des métriques de performance
+# 1. R² (coefficient de détermination)
+ss_res <- sum((actual - predictions)^2)  # Somme des carrés des résidus
+ss_tot <- sum((actual - mean(actual))^2)  # Somme totale des carrés
+rsq <- 1 - (ss_res / ss_tot)
+
+# 2. RMSE (Root Mean Square Error)
+rmse <- sqrt(mean((actual - predictions)^2))
+
+# 3. MAE (Mean Absolute Error)
+mae <- mean(abs(actual - predictions))
+
+# Affichage des résultats
+cat("=== MÉTRIQUES DE PERFORMANCE SUR L'ÉCHANTILLON TEST ===\n")
+cat(sprintf("R² (coefficient de détermination) : %.4f\n", rsq))
+cat(sprintf("RMSE (Root Mean Square Error)     : %.4f\n", rmse))
+cat(sprintf("MAE (Mean Absolute Error)         : %.4f\n", mae))
+cat("========================================================\n")
+
+```
+
+```{r}
+# Création d'un dataframe avec les résultats pour analyse
+results_df <- data.frame(
+  Actual = actual,
+  Predicted = predictions,
+  Residuals = actual - predictions
+)
+
+# Affichage des premières prédictions
+cat("\nPremières prédictions vs valeurs réelles :\n")
+print(head(results_df, 10))
+
+# Graphique des prédictions vs valeurs réelles
+par(mfrow = c(2, 2))
+
+# 1. Prédictions vs Valeurs réelles
+plot(actual, predictions, 
+     main = "Prédictions vs Valeurs réelles",
+     xlab = "Valeurs réelles", ylab = "Prédictions",
+     pch = 16, col = "blue", alpha = 0.6)
+abline(0, 1, col = "red", lwd = 2)  # Ligne y = x (prédiction parfaite)
+text(x = max(actual) * 0.1, y = max(predictions) * 0.9, 
+     labels = paste("R² =", round(rsq, 4)), cex = 1.2)
+
+# 2. Résidus vs Prédictions
+plot(predictions, results_df$Residuals, 
+     main = "Résidus vs Prédictions",
+     xlab = "Prédictions", ylab = "Résidus",
+     pch = 16, col = "blue", alpha = 0.6)
+abline(h = 0, col = "red", lwd = 2)
+
+# 3. Histogramme des résidus
+hist(results_df$Residuals, 
+     main = "Distribution des résidus",
+     xlab = "Résidus", ylab = "Fréquence",
+     col = "lightblue", border = "black")
+
+# 4. Q-Q plot des résidus
+qqnorm(results_df$Residuals, main = "Q-Q Plot des résidus")
+qqline(results_df$Residuals, col = "red", lwd = 2)
+
+```
+
+# Gradient boosting
+
+
+```{r}
+# Chargement des librairies nécessaires
+
+# Vos données (déjà définies)
+# data_split_EDMD <- initial_split(df_fonds_EDMD, prop = 3/4)
+# data_EDMD.train <- training(data_split_EDMD)
+# data_EDMD.test  <- testing(data_split_EDMD)
+
+# 1. PRÉPARATION DU WORKFLOW
+# ==========================================
+
+# Définition de la recette (preprocessing)
+recipe_xgb <- recipe(cp_EDMD ~ ., data = data_EDMD.train) %>%
+  step_normalize(all_numeric_predictors()) %>%  # Normalisation des variables numériques
+  step_dummy(all_nominal_predictors()) %>%      # Variables dummy pour les catégorielles
+  step_zv(all_predictors()) %>%                 # Suppression des variables à variance nulle
+  step_corr(all_numeric_predictors(), threshold = 0.95)  # Suppression des variables très corrélées
+
+# Définition du modèle XGBoost avec paramètres à tuner
+model_xgb <- boost_tree(
+  trees = tune(),              # Nombre d'arbres
+  tree_depth = tune(),         # Profondeur des arbres
+  min_n = tune(),              # Nombre minimum d'observations par nœud
+  loss_reduction = tune(),     # Réduction minimale de perte
+  mtry = tune(),               # Nombre de variables par arbre
+  learn_rate = tune()          # Taux d'apprentissage
+) %>%
+  set_engine("xgboost", 
+             objective = "reg:squarederror",
+             subsample = 0.8,              # Proportion fixe d'échantillonnage des observations
+             colsample_bytree = 0.8        # Proportion fixe d'échantillonnage des variables
+  ) %>%
+  set_mode("regression")
+
+# Création du workflow
+workflow_xgb <- workflow() %>%
+  add_recipe(recipe_xgb) %>%
+  add_model(model_xgb)
+
+# 2. VALIDATION CROISÉE
+# ==========================================
+
+# Définition des plis de validation croisée (10-fold CV)
+set.seed(123)
+cv_folds <- vfold_cv(data_EDMD.train, v = 10, strata = cp_EDMD)
+
+# 3. GRILLE DE PARAMÈTRES
+# ==========================================
+
+# Création d'une grille de paramètres à explorer
+param_grid <- grid_regular(
+  trees(range = c(50, 1000)),
+  tree_depth(range = c(3, 10)),
+  min_n(range = c(5, 50)),
+  loss_reduction(range = c(-10, 1.5)),
+  mtry(range = c(1, ncol(data_EDMD.train) - 1)),
+  learn_rate(range = c(-3, -0.2)),
+  levels = 3  # 3 niveaux par paramètre = 3^6 = 729 combinaisons
+)
+
+# Alternative: grille aléatoire plus petite pour un tuning plus rapide
+param_grid_random <- grid_random(
+  trees(range = c(50, 1000)),
+  tree_depth(range = c(3, 10)),
+  min_n(range = c(5, 50)),
+  loss_reduction(range = c(-10, 1.5)),
+  mtry(range = c(1, ncol(data_EDMD.train) - 1)),
+  learn_rate(range = c(-3, -0.2)),
+  size = 50  # 50 combinaisons aléatoires
+)
+
+# 4. TUNING DES HYPERPARAMÈTRES
+# ==========================================
+
+# Configuration du tuning avec métriques d'évaluation
+metrics_set <- metric_set(yardstick::rmse, yardstick::rsq, yardstick::mae)
+
+# Tuning avec la grille aléatoire (plus rapide)
+set.seed(456)
+tune_results <- tune_grid(
+  workflow_xgb,
+  resamples = cv_folds,
+  grid = param_grid_random,  # Utiliser param_grid pour la grille complète
+  metrics = metrics_set,
+  control = control_grid(save_pred = TRUE, verbose = TRUE)
+)
+
+# Affichage des meilleurs résultats
+show_best(tune_results, metric = "rmse", n = 10)
+
+# Sélection du meilleur modèle
+best_params <- select_best(tune_results, metric = "rmse")
+print("Meilleurs paramètres:")
+print(best_params)
+
+# 5. FINALISATION DU MODÈLE
+# ==========================================
+
+# Finalisation du workflow avec les meilleurs paramètres
+final_workflow <- finalize_workflow(workflow_xgb, best_params)
+
+# Entraînement sur l'ensemble complet des données d'entraînement
+final_fit <- fit(final_workflow, data = data_EDMD.train)
+
+# 6. ÉVALUATION SUR LES DONNÉES TEST
+# ==========================================
+
+# Prédictions sur les données test
+test_predictions <- predict(final_fit, new_data = data_EDMD.test) %>%
+  bind_cols(data_EDMD.test %>% select(cp_EDMD))
+
+# Calcul des métriques de performance
+test_metrics <- test_predictions %>%
+  metrics(truth = cp_EDMD, estimate = .pred)
+
+print("=== RÉSULTATS SUR LES DONNÉES TEST ===")
+print(test_metrics)
+
+# Métriques détaillées
+rmse_test <- yardstick::rmse(test_predictions, truth = cp_EDMD, estimate = .pred)
+rsq_test <- yardstick::rsq(test_predictions, truth = cp_EDMD, estimate = .pred)
+mae_test <- yardstick::mae(test_predictions, truth = cp_EDMD, estimate = .pred)
+
+cat("\n=== MÉTRIQUES DÉTAILLÉES ===\n")
+cat("RMSE (Root Mean Square Error):", rmse_test$.estimate, "\n")
+cat("R² (Coefficient de détermination):", rsq_test$.estimate, "\n")
+cat("MAE (Mean Absolute Error):", mae_test$.estimate, "\n")
+
+# 7. VISUALISATIONS
+# ==========================================
+
+# Graphique des prédictions vs valeurs réelles
+library(ggplot2)
+
+plot_predictions <- test_predictions %>%
+  ggplot(aes(x = cp_EDMD, y = .pred)) +
+  geom_point(alpha = 0.6, color = "steelblue") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(
+    title = "Prédictions vs Valeurs Réelles - XGBoost",
+    x = "Valeurs Réelles (cp_EDMD)",
+    y = "Prédictions",
+    subtitle = paste("R² =", round(rsq_test$.estimate, 3))
+  ) +
+  theme_minimal()
+
+print(plot_predictions)
+
+# Graphique des résidus
+plot_residuals <- test_predictions %>%
+  mutate(residuals = cp_EDMD - .pred) %>%
+  ggplot(aes(x = .pred, y = residuals)) +
+  geom_point(alpha = 0.6, color = "steelblue") +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  labs(
+    title = "Analyse des Résidus - XGBoost",
+    x = "Prédictions",
+    y = "Résidus (Réel - Prédit)"
+  ) +
+  theme_minimal()
+
+print(plot_residuals)
+
+# 8. IMPORTANCE DES VARIABLES
+# ==========================================
+
+# Extraction de l'importance des variables
+var_importance <- final_fit %>%
+  extract_fit_parsnip() %>%
+  vip::vi()
+
+print("=== IMPORTANCE DES VARIABLES (TOP 10) ===")
+print(head(var_importance, 10))
+
+# Graphique d'importance des variables
+plot_importance <- var_importance %>%
+  slice_head(n = 15) %>%  # Top 15 variables
+  ggplot(aes(x = reorder(Variable, Importance), y = Importance)) +
+  geom_col(fill = "steelblue", alpha = 0.7) +
+  coord_flip() +
+  labs(
+    title = "Importance des Variables - XGBoost",
+    x = "Variables",
+    y = "Importance"
+  ) +
+  theme_minimal()
+
+print(plot_importance)
+
+# 9. SAUVEGARDE DU MODÈLE (OPTIONNEL)
+# ==========================================
+
+# Sauvegarde du modèle final
+# saveRDS(final_fit, "modele_xgboost_final.rds")
+
+# Pour charger le modèle plus tard:
+# modele_charge <- readRDS("modele_xgboost_final.rds")
+
+cat("\n=== RÉSUMÉ FINAL ===\n")
+cat("Modèle XGBoost optimisé et évalué avec succès!\n")
+cat("Le modèle est maintenant prêt pour faire des prédictions sur de nouvelles données.\n")
+```
+
+
+# SVR
+
+
+
++ Intervalle de présiction :
+```{r}
+# predictions_IC <- lm_fit |>
+#   predict(new_data = data_test, type = "conf_int")
+# predictions_IC
+```
+
+
+```{r}
+rf_res %>% autoplot()
+
+```
