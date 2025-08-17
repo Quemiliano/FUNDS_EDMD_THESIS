@@ -1,0 +1,1857 @@
+---
+title: "Coding for funds EDMD thesis"
+author: "Emiliano"
+date: "2025-08-15"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+set.seed(1234)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Etude exploratoire des données
+
+```{r, warning= FALSE, message= FALSE}
+
+# 2. Load the conflicted package first to manage masking
+library(conflicted)
+
+conflict_prefer("filter", "dplyr")
+conflict_prefer("lag",    "dplyr")
+conflict_prefer("select", "dplyr")
+conflict_prefer("union",    "base")
+conflict_prefer("intersect","base")
+conflict_prefer("setdiff",  "base")
+conflict_prefer("setequal", "base")
+conflict_prefer("select", "dplyr")  # keep select
+conflict_prefer("area",   "terra")
+conflict_prefer("extract", "tidyr")
+conflict_prefer("step", "recipes")
+conflict_prefer("discard", "scales")
+conflict_prefer("spec", "readr")
+
+# 4. Load core libraries
+library(dplyr)
+library(tidyverse)
+library(stargazer)
+library(ggplot2)
+library(rnaturalearth)
+library(sf)
+library(viridis)
+library(corrplot)
+
+# 5. Load spatial/ecological analysis packages
+library(rnaturalearthdata)
+library(raster)
+library(terra)
+library(spatstat)
+library(spdep)
+
+# 6. Load modeling and visualization packages
+library(factoextra)
+library(FactoMineR)
+library(umap)
+library(tmap)
+library(dbscan)
+library(mice)
+library(leaps)
+library(bestglm)
+library(tidymodels)
+library(caret)
+library(patchwork)
+library(RColorBrewer)
+library(yardstick)
+library(vip)
+library(keras)
+library(parsnip)
+library(xgboost)
+library(tune)
+library(dials)
+library(workflows)
+library(recipes)
+library(fastDummies) 
+library(knitr)
+library(gbm)
+library(stars)
+
+```
+
+
+```{r}
+couleurs_1 <- c("#000066", "#000A7A", "#00148F", "#001EA3", "#0028B8", "#0032CC", "#003CE1", "#0046F5", 
+                "#0E50FF", "#1C5AFF", "#2A64FF", "#386EFF", "#4678FF", "#5482FF", "#628CFF", "#7096FF",
+                "#7EA0FF", "#8CAAFF", "#9AB4FF", "#A8BEFF", "#B6C8FF", "#C4D2FF", "#D2DCFF", "#E0E6FF",
+                "#EEF0FF", "#FCFAFF", "#FFFCF0", "#FFF8E0", "#FFF4D0", "#FFF0C0", "#FFECB0", "#FFE8A0",
+                "#FFE490", "#FFE080", "#FFDC70", "#FFD860", "#FFD450", "#FFD040", "#FFCC30", "#FFC820",
+                "#FFC410", "#FFC000", "#FFBB00", "#FFB500", "#FFAF00", "#FFA900", "#FFA300", "#FF9D00",
+                "#FF9700", "#FF9100", "#FF8B00", "#FF8500", "#FF7F00", "#FF7900", "#FF7300", "#FF6D00",
+                "#FF6700", "#FF6100", "#FF5B00", "#FF5500", "#FF4F00", "#FF4900", "#FF4300", "#FF3D00",
+                "#FF3700", "#FF3100", "#FF2B00", "#FF2500", "#FF1F00", "#FF1900", "#FF1300", "#FF0D00",
+                "#FF0700", "#FF0100", "#F50000", "#EB0000", "#E10000", "#D70000", "#CD0000", "#C30000")
+```
+
+
+```{r, warning= FALSE, message= FALSE}
+
+df_fonds_EDMD= read.csv("/home/emiliano/Documents/MASTER_MAS/ALTERNANCE/RAPPORT APPRENTISSAGE/Partie 2/FONDS EDMD/DATA_PRETREATMENT/fonds_vert.csv", sep = ",", dec= ".")
+
+# Création de variable binaire relative à la variable cible
+df_fonds_EDMD$statut_finance_EDMD <- as.numeric(df_fonds_EDMD$cp_EDMD > 0)
+
+
+```
+
+# Pré-traitement et gestion des données manquantes
+
+```{r}
+# Transformation des colonnes a double modalité en facteur
+
+df_fonds_EDMD <- df_fonds_EDMD %>%
+  mutate(across(c(gridens7, gare_tgv, ecoquartiers, climat, beneficiaire_prog, statut_finance_EDMD), as.factor)) %>% 
+  dplyr::select(where(~ n_distinct(.) > 1))
+```
+
+```{r, warning= FALSE, message= FALSE}
+n = dim(df_fonds_EDMD)[1]
+p = dim(df_fonds_EDMD)[2]
+
+col_name= c()
+total_na= c()
+
+for (j in c(1:p)) {
+  tot_na= sum(is.na(df_fonds_EDMD[, j]))
+  if(tot_na > 0){
+  col_name= c(col_name, colnames(df_fonds_EDMD)[j])
+  total_na= c(total_na, tot_na)
+  }
+}
+
+data.frame("columns_names"=
+                   col_name,
+           "Total_na" = total_na)
+```
+
+```{r, warning= FALSE, message= FALSE}
+set.seed(1234)
+# Imputation multiple par chaînes de Markov (valeurs plausibles)
+imputed_data <- mice(df_fonds_EDMD, method = "rf", m = 5)
+df_fonds_EDMD <- complete(imputed_data)
+```
+
+# Statistiques descriptives
+
+```{r, warning= FALSE, message= FALSE}
+df_fonds_EDMD %>%
+  dplyr::select(-c("code_com","code_dept","code_arr","lib_com","lib_arr","lib_dept")) %>% stargazer( ., type = "text", title="Descriptive statistics", digits=2)
+
+```
+
+```{r}
+#summary(df_fonds_EDMD$cp_EDMD)
+
+cible_var= df_fonds_EDMD$cp_EDMD
+
+par(mfrow=c(1,2), las=1)
+
+plot(sort(cible_var), col=rev(terrain.colors(length(cible_var))),ylim=c(0,2e+08), pch=20, cex=.75, ylab='cp_EDMD')
+
+hist(cible_var, main='', col=rev(terrain.colors(5)),  xlim=c(0,4e+08), xlab='cp_EDMD')
+
+```
+
+```{r}
+repr_boxplot_multiple= function(data, col_select, coord_cart, y_lib){
+  
+  # Passage au format long
+  df <- data %>% 
+    dplyr::select(col_select) %>%  
+    pivot_longer(cols = everything(), names_to = "variable", values_to = "valeur")
+  
+  # Tracé des boxplots avec ggplot2
+  ggplot(df, aes(x = variable, y = valeur, fill = variable)) +
+    geom_boxplot() +
+    theme_minimal() +
+    labs( x = "Variable", y = "Valeur") +
+    scale_fill_brewer(palette = "Set2") + 
+    theme(axis.text.x = element_blank()) +
+    geom_boxplot(outlier.shape = NA) +
+    coord_cartesian(ylim = c(0, coord_cart)) + 
+    ylab(y_lib)
+  }
+
+col <- colorRampPalette(c("#BB4444", "#EE9988", "beige", "orange", "#77AADD", "#4477AA"))
+ 
+
+
+repr_matrice_cor= function(data,col_select){
+  
+  df= data %>% dplyr:: select(col_select)
+  
+  df_cor= cor(df)
+  print(df_cor)
+  corrplot::corrplot(df_cor, method="circle", col=col(200),  
+                 type="upper", order="hclust", # Ajout du coefficient de corrélation
+                 tl.col="black", tl.srt=45, #Rotation des etiquettes de textes
+                 addCoef.col = "black",     
+                 number.cex = 0.7,
+                 p.mat = df_cor, sig.level = 1, insig = "blank", 
+                 diag=FALSE )
+  
+  
+    }
+
+repr_boxplot= function(data, var_fact, compare_var, clr, coord_y_val){
+  ggplot(data, aes(x=data[,var_fact], y=data[,compare_var], fill=data[,var_fact])) +
+      geom_boxplot(outlier.color = "red") +scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+        scale_fill_manual(values = clr)  +
+      theme( legend.position="none",plot.title = element_text(size=10))+
+      ylab(compare_var)+
+      xlab(var_fact)+
+    coord_cartesian(ylim = c(0, coord_y_val))
+  }
+
+```
+
+```{r}
+repr_boxplot_multiple(data= df_fonds_EDMD, 
+                      col_select= c("etab_AAS", "etab_AFA", "etab_AI", "etab_APESAS", 
+                                    "etab_ASTSA", "etab_construction", "etab_CTHR", 
+                                    "etab_IC", "etab_industrie"), 
+                      coord_cart= 50,
+                      y_lib= "Nombre d'établissement")
+
+```
+
+```{r}
+repr_matrice_cor(data= df_fonds_EDMD, col_select = c("cp_EDMD", "etab_AAS", "etab_AFA", "etab_AI", 
+                                                     "etab_APESAS","etab_ASTSA", "etab_construction",
+                                                     "etab_CTHR", "etab_IC","etab_industrie")
+                 )
+```
+
+```{r}
+
+repr_boxplot(data= df_fonds_EDMD, var_fact= "ecoquartiers", compare_var= "cp_EDMD", clr= c("#FF9999", "#66B2FF"), coord_y_val= 2e+08)
+```
+
+```{r}
+
+repr_boxplot(data= df_fonds_EDMD, var_fact= "ecoquartiers", compare_var= "CSP_maire", clr= c("#FF9999", "violet"), coord_y_val= 100)
+
+```
+
+```{r, echo= F}
+#
+repr_matrice_cor(data= df_fonds_EDMD, col_select = c("cp_EDMD", "med_disp", "com_variation_encours_dette_ha_pct", "dependance_eco"))
+```
+
+```{r}
+repr_matrice_cor(data= df_fonds_EDMD, col_select = c("cp_EDMD", "eolienne_PE_kw",  
+                                                     "hydroelectrique_PE_kw", "photovoltaique_PE_kw", 
+                                                     "fossile_PE_kw", "incinerateur_PE_kw", 
+                                                     "chaufferie_bois_PE_kw", "methaniseur_PE_kw"))
+
+repr_matrice_cor(data= df_fonds_EDMD, col_select = c("cp_EDMD", "emissions_ges", "fossile_PT_kw", "incinerateur_PT_kw", "chaufferie_bois_PT_kw", "methaniseur_PT_kw"))
+```
+
+```{r}
+
+# Création d'un dataframe résumant les totaux par type d'installation
+df_pie_installation <- df_fonds_EDMD %>%
+  summarise(
+    "Éoliennes" = sum(nbr_eolienne, na.rm = TRUE),
+    "Hydroélectricité" = sum(nbr_instal_hydroelec, na.rm = TRUE),
+    "Installations fossiles" = sum(nbr_inst_fossile, na.rm = TRUE),
+    "Incinérateurs" = sum(nbr_incinerateur, na.rm = TRUE),
+    "Chaufferies bois" = sum(nbr_chaufferie_bois, na.rm = TRUE),
+    "Méthaniseurs" = sum(nbr_unite_methaniseur, na.rm = TRUE),
+    "Solaire photovoltaïque" = sum(nbr_inst_sol_photovoltaique, na.rm = TRUE)
+  ) %>%
+  pivot_longer(cols = everything(), names_to = "Type", values_to = "Total") %>%
+  mutate(
+    Pourcentage = Total / sum(Total),
+    Etiquette = paste0( percent(Pourcentage, accuracy = 1))
+    )
+
+# Palette de couleurs personnalisée
+couleurs <- c(
+  "Éoliennes" = "#66c2a5",
+  "Hydroélectricité" = "#3288bd",
+  "Installations fossiles" = "#d53e4f",
+  "Incinérateurs" = "pink",
+  "Chaufferies bois" = "#abdda4",
+  "Méthaniseurs" = "#e6f598",
+  "Solaire photovoltaïque" = "#fee08b"
+)
+
+
+# Création du camembert avec ggplot2
+ggplot(df_pie_installation, aes(x = "", y = Total, fill = Type)) +
+  geom_col(color = "white", width = 1) +  # Bordures blanches pour meilleure segmentation
+  geom_text(aes(label = Etiquette), position = position_stack(vjust = 0.5), size = 4) +
+
+  coord_polar(theta = "y") +
+  scale_fill_manual(values = couleurs) +
+  theme_void() +
+  theme(legend.title = element_blank())
+  
+
+```
+
+```{r}
+
+nbr_install= c("cp_EDMD", "nbr_eolienne",  "nbr_instal_hydroelec", 
+               "nbr_inst_fossile", "nbr_incinerateur", "nbr_chaufferie_bois", 
+               "nbr_unite_methaniseur", "nbr_inst_sol_photovoltaique")
+
+df_fonds_EDMD[, nbr_install[2:length(nbr_install)]] %>% sum()
+
+
+repr_matrice_cor(data= df_fonds_EDMD, col_select = nbr_install)
+```
+
+```{r}
+
+repr_boxplot_multiple(data= df_fonds_EDMD, 
+                      col_select= c("MC_industrie_mwh", "MC_agricole_mwh", "MC_tertiaire_mwh", "MC_residentiel_mwh"), 
+                      coord_cart= 2000,
+                      y_lib= "Valeur moyenne de la consommation")
+
+repr_matrice_cor(data= df_fonds_EDMD, col_select = c("cp_EDMD", "MC_industrie_mwh", "MC_agricole_mwh", "MC_tertiaire_mwh", "MC_residentiel_mwh"))
+
+```
+
+```{r, message= FALSE}
+
+df_long <- df_fonds_EDMD %>% dplyr::select(taux_conformite_bact,taux_conformite_chim) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "valeur")
+
+# Histogramme avec ggplot2
+ggplot(df_long, aes(x = valeur, fill = variable)) +
+  geom_histogram(alpha = 0.5, position = "identity", bins = 30) +
+  theme_minimal() +
+  labs(x = "Taux de conformité", y = "Nombre de commune")
+
+repr_boxplot(data=df_fonds_EDMD, var_fact= "climat", compare_var= "cp_EDMD",clr= c("#FF9999", "#66B2FF", "beige"), coord_y_val= 7e+05)
+
+repr_matrice_cor(data= df_fonds_EDMD, col_select = c("cp_EDMD", "friches", "part_residences_secondaires",
+                                                     "taux_conformite_bact","taux_conformite_chim"))
+
+```
+
+```{r}
+repr_boxplot(data=df_fonds_EDMD, var_fact= "gridens7", compare_var= "cp_EDMD",clr= c("#FF9999", "#66B2FF", "beige", 6, 2, 3, 4), coord_y_val= 1e+08)
+
+repr_boxplot(data=df_fonds_EDMD, var_fact= "beneficiaire_prog", compare_var= "cp_EDMD",clr= c("gray", "#66B2FF" ), coord_y_val= 1e+05)
+
+repr_matrice_cor(data= df_fonds_EDMD, col_select = c("cp_EDMD", "p_pop", "nb_actes_france_renov", "abstention_municipales", "CSP_maire"))
+
+```
+
+```{r}
+
+repr_matrice_cor(data= df_fonds_EDMD, col_select = c("cp_EDMD", "part_actifs", "part_inactifs", 
+                                                     "taux_creation_ent", "total_entreprises", 
+                                                     "part_licencies_sportifs", "part_jeunes_sans_diplome"
+))
+
+```
+
+```{r, message= FALSE}
+
+repr_boxplot(data=df_fonds_EDMD, var_fact= "gare_tgv", compare_var= "cp_EDMD",clr= c("#FF9999", "#66B2FF", "beige"), coord_y_val= 5e+07)
+repr_matrice_cor(data= df_fonds_EDMD, col_select = c("cp_EDMD", "part_trajets_voiture"))
+
+
+
+```
+
+```{r}
+
+df_vl_benef <- df_fonds_EDMD %>% dplyr::select(autres_benef_collectivite, autres_benef_entreprise, 
+                                              autres_benef_etat, autres_benef_association) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "valeur")
+
+ggplot(df_vl_benef, aes(x = variable, y = valeur, color = variable)) +
+  geom_violin(trim = FALSE) +
+  geom_jitter(width = 0.2, alpha = 0.3) +
+  coord_cartesian(ylim = c(0, 50)) +
+  theme_minimal()
+
+repr_boxplot_multiple(data= df_fonds_EDMD, 
+                      col_select= c("autres_benef_collectivite","autres_benef_entreprise", 
+                                    "autres_benef_etat", "autres_benef_association"), 
+                      coord_cart= 40,
+                      y_lib= "Nombre de bénéficiaire")
+
+
+repr_matrice_cor(data= df_fonds_EDMD, col_select = c("cp_EDMD",  "autres_benef_collectivite", 
+                                                     "autres_benef_entreprise", "autres_benef_etat", "autres_benef_association","taux_subvention"))
+
+
+
+
+```
+
+```{r}
+ae_var= c("cp_EDMD", "ae_AAFAR", "ae_AF", "ae_AGTE", "ae_APD", "ae_CCSR", "ae_CT", "ae_culture", 
+          "ae_DAG", "ae_economie", "ae_EDMD", "ae_ES", "ae_GFP", "ae_GPIE", "ae_IAI", 
+          "ae_justice", "ae_MLIC", "ae_PR", "ae_RCT", "ae_RD", "ae_RES", "ae_securites", 
+          "ae_SIEC", "ae_SJVA", "ae_TEAMS", "ae_TFP")
+
+
+repr_matrice_cor(data= df_fonds_EDMD, col_select =  ae_var)
+```
+
+```{r}
+cp_var= c("cp_EDMD", "cp_AAFAR", "cp_AF", "cp_AGTE", "cp_APD", "cp_CCSR", "cp_CT", "cp_culture", 
+          "cp_DAG", "cp_economie", "cp_EDMD", "cp_ES", "cp_GFP", "cp_GPIE", "cp_IAI", 
+          "cp_justice", "cp_MLIC", "cp_PR", "cp_RCT", "cp_RD", "cp_RES", "cp_securites", 
+          "cp_SIEC", "cp_SJVA", "cp_TEAMS", "cp_TFP")
+
+repr_matrice_cor(data= df_fonds_EDMD, col_select =  cp_var)
+```
+
+# Statistiques Spatiale
+
+```{r, warning= FALSE, message= FALSE}
+
+# Chargement des données géographiques (communes ou départements)
+com <- read_sf("commune_sf")  # ou un autre fichier contenant la géo
+
+# Filtrer uniquement les départements de Bretagne 
+bretagne <- com %>% dplyr:: filter(reg == "53") 
+
+colnames(bretagne)[1] = "code_com"
+
+bretagne$code_com = as.double(bretagne$code_com)
+
+df_fonds_EDMD_for_carto = left_join(df_fonds_EDMD, bretagne, by = "code_com")
+df_fonds_EDMD_for_carto <- st_as_sf(df_fonds_EDMD_for_carto)
+
+
+# Tracer uniquement la Bretagne
+ggplot(df_fonds_EDMD_for_carto) +
+  geom_sf(aes(fill = statut_finance_EDMD)) +
+  scale_fill_manual(
+    values = c("0" = "pink", "1" = "turquoise"),
+    name = "Statut du bénéficiaire fonds EDMD",
+    labels = c("Non", "Oui")
+  ) +
+#  labs(title = "Répartition des bénéficiaires du fonds écologie \net developpement des mobilitées durables par commune")+
+  theme_void() +  coord_sf()
+
+
+# Tracer uniquement la Bretagne
+ggplot(df_fonds_EDMD_for_carto) + 
+  geom_sf(aes(fill = cp_EDMD)) + 
+scale_fill_continuous(low= "lightgray",high= couleurs_1[20:50])+
+  theme_void() +  coord_sf()
+
+
+# Tracer uniquement la Bretagne
+ggplot(df_fonds_EDMD_for_carto) + 
+  geom_sf(aes(fill = taux_subvention)) + 
+scale_fill_continuous(low="beige",high="blue")+
+  theme_void() +  coord_sf()
+
+df_fonds_EDMD %>% dplyr::select(statut_finance_EDMD) %>%
+  summary()
+
+```
+
+```{r}
+planar_sf_breizh<-st_transform(df_fonds_EDMD_for_carto , 2154)
+
+centroids_benef <- st_centroid(df_fonds_EDMD_for_carto %>% dplyr::filter(statut_finance_EDMD==1))
+
+planar_center_com_breizh <-st_transform(centroids_benef, 2154)
+
+ppp_points_breizh <- as.ppp(st_coordinates(planar_center_com_breizh),as.owin(planar_sf_breizh))
+ds_breizh <- density(ppp_points_breizh) #sample version
+plot(ds_breizh, main= "")
+```
+
+```{r}
+xy <- cbind(x=df_fonds_EDMD$p_pop, y=df_fonds_EDMD$taux_subvention)
+
+plot(xy, cex=cible_var/1e+08, xlim=c(0,25000), ylim=c(0,0.9), col=rev(terrain.colors(50)))
+```
+
+```{r, warning= FALSE, message= FALSE}
+df_fonds_EDMD[df_fonds_EDMD$taux_subvention >0.85,]%>%
+  dplyr::select(lib_com, taux_subvention, p_pop, superf_choro) %>%
+  arrange(desc(taux_subvention))
+```
+
+```{r}
+df_fonds_EDMD_for_carto <- st_transform(df_fonds_EDMD_for_carto, crs = 4326)  # reprojection
+
+df_fonds_EDMD_for_carto$cp_EDMD <- as.numeric(df_fonds_EDMD_for_carto$cp_EDMD)
+```
+
+![](images/contiguite.png)
+
+![](images/contiguite_queen.png)
+
+```{r, warning= FALSE, message= FALSE}
+
+### Récupération des centroides 
+coor<-st_centroid(st_geometry(df_fonds_EDMD_for_carto))
+
+#Extraction de la liste des voisins (au sens Queen par défaut)
+communes_link_queen <- poly2nb(df_fonds_EDMD_for_carto, queen= TRUE)
+
+card_communes_link_queen<-card(communes_link_queen)
+
+tmap_mode("plot") 
+
+tm_shape(df_fonds_EDMD_for_carto) +
+  tm_polygons(col="white", border.col = "blue") +
+  tm_graticules(lines = FALSE) +
+  tm_shape(st_centroid(df_fonds_EDMD_for_carto)) +
+  tm_dots(size = 0.1, col="green") +
+  tm_shape(nb2lines(communes_link_queen, coords=coor)) +
+  tm_lines(col="red", lwd=0.3) +
+  tm_layout(title ="Voisins contigus (Queen)",title.position = c('left', 'bottom'),scale=0.5)
+```
+
+```{r}
+ggplot() +
+  geom_density(aes(x=card_communes_link_queen)) +
+  xlab("Nombres de voisins")+ggtitle("Voisins contigus (Queen)")
+```
+
+-   Analyse de la configuration des points
+
+```{r}
+
+planar_sf_breizh_KS<-st_transform(df_fonds_EDMD_for_carto , 2154)
+
+centroids_benef_KS <- st_centroid(df_fonds_EDMD_for_carto)
+
+planar_center_com_breizh_KS <-st_transform(centroids_benef, 2154)
+
+ppp_points_breizh_KS <- as.ppp(st_coordinates(planar_center_com_breizh),
+                               as.owin(planar_sf_breizh))
+ds_breizh_KS <- density(ppp_points_breizh)
+
+####################################################################
+
+centroids_benef_ponct <- st_centroid(df_fonds_EDMD_for_carto %>%
+                                       dplyr::filter(statut_finance_EDMD==1))
+
+planar_center_com_breizh_ponct <-st_transform(centroids_benef, 2154)
+
+planar_sf_breizh_KS_ponct<-st_transform(df_fonds_EDMD_for_carto %>%
+                                    dplyr::filter(statut_finance_EDMD==1),
+                                  2154)
+
+ppp_points_breizh_KS_ponct <- as.ppp(st_coordinates(planar_center_com_breizh_ponct),
+                                     as.owin(planar_sf_breizh_KS_ponct))
+
+KS.test <- cdf.test(ppp_points_breizh_KS_ponct, ds_breizh_KS, test="ks")
+KS.test
+```
+
+
+```{r,message=FALSE, warning= FALSE}
+
+repr_ppp= function(data, filiere_choice, process= Kest){
+  
+  data= data %>% filter(filiere== filiere_choice) 
+  #Création d’un point pattern ppp= representing a point pattern dataset in the two-dimensional plane, avec owin la zone d’étude
+ 
+  ppp_filiere <- as.ppp(data[ ,c ("lambert_x", "lambert_y")],
+                        owin(c(min(data[,"lambert_x"]),
+                               max(data[,"lambert_x"])),
+                             c(min(data[,"lambert_y"]),
+                               max(data[,"lambert_y"])))
+                        )
+  
+  # K inhomogène avec  l'enveloppe
+  kenv_filiere <- envelope(ppp_filiere, process)
+  
+  #représentation graphique
+  plot(kenv_filiere, main= filiere_choice, xlab = "r (mètres)")
+}
+
+
+centroids <- st_centroid(df_fonds_EDMD_for_carto %>% dplyr:: filter(statut_finance_EDMD==1))
+
+data_for_ppp  <- data.frame(st_coordinates(centroids))
+colnames(data_for_ppp)= c("lambert_x", "lambert_y")
+
+data_for_ppp$filiere= "KinEDMD"
+
+repr_ppp(data= data_for_ppp, filiere_choice= "KinEDMD")
+
+```
+
+
+# Autocorrélation spatiale globale
+
+
+```{r, message=FALSE, warning= FALSE}
+
+pts_eco <- st_as_sf(
+    st_centroid(df_fonds_EDMD_for_carto %>%
+                  dplyr:: filter(statut_finance_EDMD==1)),
+    coords = c("xcl2154","ycl2154"),
+    crs    = 2154,
+    remove = FALSE) %>%
+  st_transform(2154)
+
+
+par(mar = c(0, 0, 1, 0))
+plot(
+  st_geometry(bretagne),
+  col    = "lightgrey",
+  border = "darkgrey",
+  main   = ""
+  )
+
+plot(
+  pts_eco,
+  pch = 20, cex= 0.4,  col =  "black",
+  add = TRUE)
+
+```
+
+
+```{r, message=FALSE, warning= FALSE}
+
+# Représentation du diagramme de Moran
+
+#Création de la matrice de poids standardisé en ligne = méthode par défaut
+W_Queen <- nb2listw(communes_link_queen ,zero.policy=TRUE,style="W")
+m1 <- listw2mat(W_Queen)
+
+#Calcul des fonds écologie et developpement durable standardisés
+df_fonds_EDMD_for_carto$cp_EDMD_std <- as.vector(scale(df_fonds_EDMD_for_carto$cp_EDMD))
+
+# Représentation cartographique du diagramme de Moran
+
+
+#revenu médian des voisins (Wy)
+df_fonds_EDMD_for_carto$v_cp_EDMD_std<-lag.listw(W_Queen,df_fonds_EDMD_for_carto$cp_EDMD_std)
+
+#Variable indicatrice (high high, low low ect)
+df_fonds_EDMD_for_carto$hs[df_fonds_EDMD_for_carto$v_cp_EDMD_std<mean(df_fonds_EDMD_for_carto$cp_EDMD_std) & df_fonds_EDMD_for_carto$cp_EDMD_std<mean(df_fonds_EDMD_for_carto$cp_EDMD_std)]<-1.0
+df_fonds_EDMD_for_carto$hs[df_fonds_EDMD_for_carto$v_cp_EDMD_std>=mean(df_fonds_EDMD_for_carto$cp_EDMD_std) & df_fonds_EDMD_for_carto$cp_EDMD_std<mean(df_fonds_EDMD_for_carto$cp_EDMD_std)]<-2.0
+df_fonds_EDMD_for_carto$hs[df_fonds_EDMD_for_carto$v_cp_EDMD_std<mean(df_fonds_EDMD_for_carto$cp_EDMD_std) & df_fonds_EDMD_for_carto$cp_EDMD_std>=mean(df_fonds_EDMD_for_carto$cp_EDMD_std)]<-3.0
+df_fonds_EDMD_for_carto$hs[df_fonds_EDMD_for_carto$v_cp_EDMD_std>=mean(df_fonds_EDMD_for_carto$cp_EDMD_std) & df_fonds_EDMD_for_carto$cp_EDMD_std>=mean(df_fonds_EDMD_for_carto$cp_EDMD_std)]<-4.0
+
+brks <- c(1,2,3,4)
+colors <- rev(brewer.pal(n = 4, name = "RdYlBu"))
+
+#diagramme de Moran
+# args(moran.plot)
+par(mfrow= c(1,2))
+par(mar = c(0, 0, 1, 0))
+moran.plot(df_fonds_EDMD_for_carto$cp_EDMD_std ,
+           W_Queen,labels=TRUE, pch = ".",
+           xlab="Fonds écologie et développement durable",ylab="Moyenne des fonds écologie et développement durable")
+
+par(mar = c(0, 0, 1, 0))
+plot(st_geometry(df_fonds_EDMD_for_carto),border="lightgray",col=colors[findInterval(df_fonds_EDMD_for_carto$hs,brks,all.inside=FALSE)]
+     #, main= "Cartographie du diagramme de Moran"
+     )
+legend("bottomleft", legend = c('BB','BH','HB','HH'),
+       fill=colors,bty="n")
+
+```
+
+```{r, warning= FALSE, message= FALSE}
+moran.test(df_fonds_EDMD_for_carto$cp_EDMD_std,W_Queen,zero.policy=TRUE, randomisation=FALSE)
+```
+
+```{r}
+moran.test(df_fonds_EDMD_for_carto$cp_EDMD_std, W_Queen,zero.policy=TRUE, randomisation=TRUE)
+```
+
+# Autocorrélation spatiale locale
+
+```{r}
+library(spdep)
+
+
+# Autocorélation local
+lisa_cp_EDMD<- localmoran(df_fonds_EDMD_for_carto$cp_EDMD,W_Queen,zero.policy=TRUE)
+
+local_moran <- localmoran(df_fonds_EDMD_for_carto$cp_EDMD_std, W_Queen, zero.policy = TRUE)
+pval <- local_moran[, "Pr(z != E(Ii))"]
+
+# significance threshold
+signif <- 0.05 
+
+var_std<-df_fonds_EDMD_for_carto$cp_EDMD_std
+
+# centers the local Moran's around the mean
+local<-lisa_cp_EDMD[,1]-mean(lisa_cp_EDMD[,1])
+
+# Construction d’un data.frame pour le scatterplot
+moran_df <- data.frame(
+  var_std = var_std,
+  local = local,
+  pval = pval
+)
+
+# Typologie selon quadrants
+moran_df <- moran_df %>%
+  mutate(cadrant = case_when(
+    var_std > 0 & local > 0 & pval <= signif ~ "haut-haut",
+    var_std < 0 & local < 0 & pval <= signif ~ "bas-bas",
+    var_std > 0 & local < 0 & pval <= signif ~ "haut-bas",
+    var_std < 0 & local > 0 & pval <= signif ~ "bas-haut",
+    TRUE ~ "Non significatif"
+  ),
+  brks = case_when(
+    var_std > 0 & local > 0 & pval <= signif ~ 4,
+    var_std < 0 & local < 0 & pval <= signif ~ 1,
+    var_std > 0 & local < 0 & pval <= signif ~ 3,
+    var_std < 0 & local > 0 & pval <= signif ~ 2,
+    TRUE ~ 0
+  ),
+  colors = case_when(
+    var_std > 0 & local > 0 & pval <= signif ~ "red",
+    var_std < 0 & local < 0 & pval <= signif ~ "blue",
+    var_std > 0 & local < 0 & pval <= signif ~ "orange",
+    var_std < 0 & local > 0 & pval <= signif ~ "lightblue",
+    TRUE ~ "lightgray"
+  ))
+
+par(mfrow= c(1,2))
+par(mar = c(0, 0, 1, 0))
+
+# Créer le plot de base
+plot(
+  moran_df$var_std, moran_df$local,
+  col = moran_df$colors,
+  pch = 19,
+  xlab = "Valeur standardisée des cp_EDMD",
+  ylab = "Moyenne pondérée des voisins",
+  main = ""
+)
+
+# Lignes horizontale et verticale
+abline(h = 0, lty = 2, col = "black")
+abline(v = 0, lty = 2, col = "black")
+
+
+
+## carte I Moran locaux
+
+# quadrant <- vector(mode="numeric",length=nrow(lisa_cp_EDMD))
+# 
+# # builds a data quadrant
+# quadrant[var_std>0 & local>0  & lisa_cp_EDMD[,5] < signif] <- 4  
+# quadrant[var_std <0 & local<0 & lisa_cp_EDMD[,5] < signif] <- 1      
+# quadrant[var_std <0 & local>0 & lisa_cp_EDMD[,5] < signif] <- 2
+# quadrant[var_std >0 & local<0 & lisa_cp_EDMD[,5] < signif] <- 3
+# quadrant[lisa_cp_EDMD[,5]>signif] <- 0   
+# 
+# # plot in r
+# brks <- c(0,1,2,3,4)
+colors_leg <- c("lightgray","blue","lightblue","orange","red")
+
+par(mar = c(0, 0, 1, 0))
+plot(st_geometry(df_fonds_EDMD_for_carto),border="white",col=moran_df$colors)
+
+legend("bottomleft", legend = c("non significatif","bas-bas","bas-haut","haut-bas","haut-haut"),
+       fill= colors_leg,bty="n")
+
+```
+
+```{r}
+# Calcul de la densité
+dens <- density(lisa_cp_EDMD[, 1])
+
+# Tracé de la courbe
+plot(dens,
+     main    = "",
+     xlab    = "Indices de Moran local (LISA)",
+     ylab    = "Densité",
+     lwd     = 2
+)
+
+# Ajout du trait vertical rouge à x = 0.08
+abline(v = 0.08, col = "red", lwd = 2)
+
+# Ajout du texte pour indiquer que c'est le I de Moran global
+text(x = 0.08, 
+     y = max(dens$y) * 0.9, 
+     labels = "I de Moran global", 
+     pos = 4, 
+     col = "red")
+
+
+```
+
+
+# Machine learning 
+
+
+```{r}
+df_fonds_EDMD= read.csv("/home/emiliano/Documents/MASTER_MAS/ALTERNANCE/RAPPORT APPRENTISSAGE/Partie 2/FONDS EDMD/DATA_PRETREATMENT/fonds_vert.csv", sep = ",", dec= ".")
+
+# Création de variable binaire relative à la variable cible
+df_fonds_EDMD$statut_finance_ecolo_dmd <- as.numeric(df_fonds_EDMD$cp_EDMD > 0)
+
+```
+
+
+```{r}
+
+set.seed(1234)
+# Transformation des colonnes a double modalité en facteur
+
+df_fonds_EDMD <- df_fonds_EDMD %>%
+  mutate(across(c(gridens7, gare_tgv, ecoquartiers, climat, beneficiaire_prog, statut_finance_ecolo_dmd), as.factor)) %>% 
+  dplyr::select(where(~ n_distinct(.) > 1))
+
+n = dim(df_fonds_EDMD)[1]
+p = dim(df_fonds_EDMD)[2]
+
+col_name= c() 
+total_na= c()
+
+for (j in c(1:p)) {
+  tot_na= sum(is.na(df_fonds_EDMD[, j]))
+  if(tot_na > 0){
+  col_name= c(col_name, colnames(df_fonds_EDMD)[j])
+  total_na= c(total_na, tot_na)
+  }
+}
+
+data.frame("columns_names"=
+                   col_name,
+           "Total_na" = total_na)
+
+
+# Imputation multiple par chaînes de Markov (valeurs plausibles)
+imputed_data <- mice(df_fonds_EDMD, method = "rf", m = 5)
+df_fonds_EDMD <- complete(imputed_data)
+
+```
+
+# Machine learning 
+
++ Fonction de dummisation
+
+```{r}
+prepare_and_dummify_data = function(data, del_dependance) {
+  
+  combos <- findLinearCombos(data)
+  
+  # Supprimer les colonnes redondantes (s'il y en a)
+  if (del_dependance == TRUE & !is.null(combos$remove)) {
+    data_EDMD_clean <- data[,-combos$remove]
+    message("Colonnes supprimées pour dépendance linéaire : ",
+            paste(colnames(data)[combos$remove], collapse = ", "))
+  } else {
+    data_EDMD_clean <- data
+  }
+  
+  
+  # Préparation des données avec dplyr
+  data_prepared <- data_EDMD_clean %>%
+    mutate(across(where(is.factor), as.character)) %>%
+    {
+      # Récupération des variables non-factor pour les conserver
+      numeric_vars <- dplyr::select(., where(is.numeric))
+      factor_vars <-
+        dplyr::select(., where(function(x)
+          is.character(x) || is.factor(x)))
+      
+      # Création des dummies
+      dummy_vars <- factor_vars %>%
+        fastDummies::dummy_cols(remove_first_dummy = TRUE,
+                                remove_selected_columns = TRUE)
+      
+      # Combinaison des variables numériques et dummy
+      bind_cols(numeric_vars, dummy_vars) # on obtient 11 colonnes issues de la dummisation 
+    } %>%
+    relocate(cp_EDMD, .after = last_col() # Déplacement de la variable cible en dernière position
+             )
+             return(data_prepared) # 101 colonnes après nettoyage de dépendance linéaire + 11 colonnes dummies = 112
+  }
+```
+
+```{r}
+# Fonction de calcul du RMSE et du R²
+rmse_and_rsq= function(the_preds, test_values){
+  # Valeurs réelles (conversion en vecteur)
+  predictions <- as.vector(the_preds)
+  actual <- as.vector(test_values)
+  
+  # Calcul des métriques de performance
+  
+  # 1. R² (coefficient de détermination)
+  ss_res <- sum((actual - predictions)^2)  # Somme des carrés des résidus
+  ss_tot <- sum((actual - mean(actual))^2)  # Somme totale des carrés
+  rsq_calcule <- 1 - (ss_res / ss_tot)
+  
+  # 2. RMSE (Root Mean Square Error)
+  rmse_calcule <- sqrt(mean((actual - predictions)^2))
+  
+return(c(rmse_calcule, rsq_calcule))
+}
+```
+
+
++ Préparation des données (no dummies)
+
+```{r}
+set.seed(1234)
+
+df_fonds_EDMD= df_fonds_EDMD %>%
+  dplyr::select(-c("code_dept","code_arr","lib_com","lib_arr","lib_dept")) %>%
+  mutate(across(starts_with(c("ae_", "cp_")), ~ round(.x, 1))) %>%
+  mutate(across(starts_with(c("ae_", "cp_")), ~ .x / 1000))
+
+
+df_fonds_EDMD_Finance= df_fonds_EDMD  %>% filter(statut_finance_ecolo_dmd == 1) %>% dplyr:: select(-c(statut_finance_ecolo_dmd, code_com))
+
+df_fonds_EDMD_non_finance= df_fonds_EDMD  %>% filter(statut_finance_ecolo_dmd == 0)  %>% dplyr:: select(-c(statut_finance_ecolo_dmd, cp_EDMD))
+
+data_EDMD_split <- initial_split(df_fonds_EDMD_Finance, prop = 2/3)
+data_EDMD.train <- training(data_EDMD_split)
+data_EDMD.test  <- testing(data_EDMD_split)
+
+prev_bases_models <- tibble(algo=c("Regression simple","Arbre de décision","K plus proches voisins","Perceptron"),RMSE=0, R_square= 0)
+```
+
+
++  Préparation des données (dummies) 
+
+```{r}
+set.seed(1234)
+data_dummify= prepare_and_dummify_data(data= df_fonds_EDMD_Finance, del_dependance= TRUE)
+
+data_EDMD_dummify_split <- initial_split(data_dummify, prop = 2/3)
+data_EDMD_dummify.train <- training(data_EDMD_dummify_split)
+data_EDMD_dummify.test  <- testing(data_EDMD_dummify_split)
+
+data_EDMD_dummify.train <- data_EDMD_dummify.train |>
+  relocate(cp_EDMD,.after = last_col())
+
+data_EDMD_dummify.test <- data_EDMD_dummify.train |>
+  relocate(cp_EDMD,.after = last_col())
+
+```
+
++ Préparation des données (dummies + scaled)
+
+```{r}
+set.seed(1234)
+data_dummify_wd= prepare_and_dummify_data(data= df_fonds_EDMD_Finance, del_dependance= FALSE)
+
+data_EDMD_dummify_wd_split <- initial_split(data_dummify_wd, prop = 2/3)
+data_EDMD_dummify_wd.train <- training(data_EDMD_dummify_wd_split)
+data_EDMD_dummify_wd.test  <- testing(data_EDMD_dummify_wd_split)
+
+data_EDMD_dummify_wd.train <- data_EDMD_dummify_wd.train |>
+  relocate(cp_EDMD,.after = last_col())
+
+data_EDMD_dummify_wd.test <- data_EDMD_dummify_wd.test |>
+  relocate(cp_EDMD,.after = last_col())
+
+
+# Préparation des données
+Xtrain_mat <- as.matrix(data_EDMD_dummify_wd.train %>% 
+                          dplyr::select(-cp_EDMD)) %>%
+  array_reshape(., c(nrow(.),ncol(.))) %>%
+  as.numeric()
+
+Ytrain_mat <- as.matrix(data_EDMD_dummify_wd.train$cp_EDMD) %>%
+  array_reshape(., c(nrow(.),ncol(.))) %>%
+  as.numeric()
+
+
+# Préparation des données de test (correction)
+
+Xtest_mat <- as.matrix(data_EDMD_dummify_wd.test %>% 
+                         dplyr::select(-cp_EDMD))%>%
+  array_reshape(., c(nrow(.),ncol(.))) %>%
+  as.numeric()
+
+Ytest_mat <- as.matrix(data_EDMD_dummify_wd.test$cp_EDMD) %>%
+  array_reshape(., c(nrow(.),ncol(.))) %>%
+  as.numeric()
+
+#  Dimension des données
+dim(Xtrain_mat) <- c(nrow(data_EDMD_dummify_wd.train), ncol(data_EDMD_dummify_wd.train) -1)
+
+dim(Ytrain_mat) <- c(nrow(data_EDMD_dummify_wd.train), 1)
+
+dim(Xtest_mat) <- c(nrow(data_EDMD_dummify_wd.test), ncol(data_EDMD_dummify_wd.test) - 1)
+
+dim(Ytest_mat) <- c(nrow(data_EDMD_dummify_wd.test), 1)
+
+# Centrage réduction avec gestion de la division par zéro
+means_train <- colMeans(Xtrain_mat)
+sds_train <- apply(Xtrain_mat, 2, sd)
+
+# Identifier les colonnes avec écart-type nul (variance nulle)
+zero_var_cols <- which(sds_train == 0 | is.na(sds_train))
+
+# Remplacement des écarts-types nuls par 1 pour éviter la division par zéro
+sds_train_safe <- sds_train
+sds_train_safe[zero_var_cols] <- 1
+
+# Affichage d'information si des colonnes à variance nulle sont détectées
+if(length(zero_var_cols) > 0) {
+  cat("Attention: ", length(zero_var_cols), " colonne(s) avec variance nulle détectée(s):\n")
+  cat("Colonnes:", zero_var_cols, "\n")
+}
+
+# Scaling sécurisé
+Xtrain_mat_scaled <- scale(Xtrain_mat,
+                           center = means_train, 
+                           scale = sds_train_safe)
+
+Xtest_mat_scaled <- scale(Xtest_mat, 
+                          center = means_train, 
+                          scale = sds_train_safe)
+```
+
+
+# Modèles de bases(fondamental)
+
+## Regression linéaire simple
+
+```{r}
+
+# Sélection de la variable cible et de la variable explicatif taux_subvention pour les données test et d'entrainement 
+
+data_EDMD.train_rs <- data_EDMD.train %>% dplyr:: select(cp_EDMD, taux_subvention)
+data_EDMD.test_rs  <- data_EDMD.test %>% dplyr:: select(cp_EDMD, taux_subvention)
+
+# Création du workflow
+
+lm_model <- linear_reg() |>
+  set_engine("lm") |>
+  set_mode("regression")
+
+# Reccette de transformation des variables explicatif
+
+data_recipe <- recipe(cp_EDMD ~ ., data = data_EDMD.train_rs) %>%
+  # Variables catégorielles en dummy
+  step_dummy(all_nominal_predictors()) %>%
+  step_zv(all_predictors()) %>% # Supprimer les variables à variance nulle
+  step_normalize(all_numeric_predictors())   # Normaliser les variables numériques
+
+# Vérifier et voir les transformations appliquées
+
+data_recipe_prepped <- prep(data_recipe)
+
+# Workflow
+lm_wf <- workflow() %>%
+  add_model(lm_model) %>%
+  add_recipe(data_recipe)
+
+# Performance des modeles d'entrainement
+model_lm <-  lm_wf |>
+  fit(data= data_EDMD.train_rs)
+
+# significativité des variables
+#model_lm |> tidy()
+
+# Prédiction sur les données de test
+preds_lm <- predict(model_lm, data_EDMD.test_rs) %>%
+  bind_cols(data_EDMD.test_rs %>% dplyr::select(cp_EDMD))
+
+# Évaluation de la précision
+
+metrics_rs= metrics(data = preds_lm, truth = cp_EDMD, estimate = .pred)[c(1, 2),]
+
+prev_bases_models[1,2]= metrics_rs$.estimate[1]
+
+prev_bases_models[1,3]= metrics_rs$.estimate[2]
+
+```
+
+## Arbre de décision(sans limite de profondeur)
+ 
+```{r}
+
+set.seed(1234)
+# Définition de l'arbre de décision (régression)
+tree_spec <- decision_tree(
+  cost_complexity = 0.01, # Paramètre de complexité (alpha)
+  min_n = NULL,              # Taille minimale des noeuds
+  tree_depth = NULL         # Profondeur max
+) %>%
+  set_engine("rpart") %>%
+  set_mode("regression")
+
+# Workflow
+tree_wf <- workflow() %>%
+  add_model(tree_spec) %>%
+  add_formula(cp_EDMD ~ .)
+
+# Ajustement direct sans validation croisée
+arbre_final <- tree_wf %>%
+  fit(data = data_EDMD.train)
+
+# Prédictions sur les données de test
+preds_tree <- predict(arbre_final, data_EDMD.test) %>%
+  bind_cols(data_EDMD.test %>% dplyr::select(cp_EDMD))
+
+# Évaluation
+
+metrics_tree= metrics(data = preds_tree, truth = cp_EDMD, estimate = .pred)[c(1, 2),]
+
+prev_bases_models[2,2]= metrics_tree$.estimate[1]
+
+prev_bases_models[2,3]= metrics_tree$.estimate[2]
+```
+
+
+
+```{r}
+# Importance des variables
+modele_tree <- extract_fit_parsnip(arbre_final)
+vip(modele_tree$fit)
+```
+
+
+## K plus proches voisins
+ 
+```{r, warning= FALSE, error=FALSE}
+
+set.seed(1234)
+# Définition du modèle KNN (régression)
+knn_spec <- nearest_neighbor(
+  neighbors = 5,       # nombre de voisins k
+  weight_func = "rectangular", # pondération uniforme
+  dist_power = 2       # distance euclidienne
+) %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+
+# Reccette de transformation des variables explicatif
+
+data_recipe <- recipe(cp_EDMD ~ ., data = data_EDMD.train) %>%
+  step_dummy(all_nominal_predictors()) %>% # Variables catégorielles en dummy
+  step_zv(all_predictors()) %>% # Supprimer les variables à variance nulle
+  step_normalize(all_numeric_predictors())   # Normaliser les variables numériques
+
+# Vérifier et voir les transformations appliquées
+
+data_recipe_prepped <- prep(data_recipe)
+
+
+# Workflow
+knn_wf <- workflow() %>%
+  add_model(knn_spec) %>%
+  add_recipe(data_recipe) 
+
+# Ajustement direct sur tout l'ensemble d'entraînement
+knn_final <- knn_wf %>%
+  fit(data = data_EDMD.train)
+
+# Prédictions sur les données de test
+preds_knn <- predict(knn_final, data_EDMD.test) %>%
+  bind_cols(data_EDMD.test %>% dplyr::select(cp_EDMD))
+
+# Évaluation des performances
+
+metrics_knn= metrics(data = preds_knn, truth = cp_EDMD, estimate = .pred)[c(1, 2),]
+
+prev_bases_models[3,2]= metrics_knn$.estimate[1]
+
+prev_bases_models[3,3]= metrics_knn$.estimate[2]
+```
+
+## Perceptron 
+
+```{r, warning= FALSE, error=FALSE}
+
+set.seed(1234)
+# Construction du modèle séquentiel
+model_rn <- keras_model_sequential()
+model_rn$add(layer_dense(units = 1, input_shape = c(118), activation = "linear"))
+
+# rm(model_rn, history_perceptron)
+
+# Compilation du modèle (syntaxe corrigée)
+model_rn$compile(
+  optimizer = optimizer_adam(learning_rate = 0.5),
+  loss = "mean_squared_error",
+  metrics = list("mse"))
+
+# Affichage du résumé du modèle
+model_rn$summary()
+
+# rm(history_perceptron, model_rn)
+# Entraînement du modèle
+history_perceptron <- model_rn$fit(
+  x = Xtrain_mat_scaled,
+  y = Ytrain_mat,
+  epochs = 200L,
+  batch_size = 30L,
+  validation_split = NULL,
+  verbose = NULL)
+
+# Prédictions sur l'échantillon test
+predictions_pcpt <- model_rn$predict(Xtest_mat_scaled)
+
+perceptron_rmse_and_rsq= rmse_and_rsq(the_preds= predictions_pcpt, test_values= Ytest_mat)
+
+prev_bases_models[4,2]=  perceptron_rmse_and_rsq[1]
+prev_bases_models[4,3]= perceptron_rmse_and_rsq[2]
+
+```
+ 
+# + Comparaison des modèles de bases 
+
+```{r}
+# Affichage des résultats
+prev_bases_models
+```
+
+
+# Modeles ajustées( Calibrage + réechantillonage)
+
+```{r}
+models_pred_adjusted <- tibble(algo=c("Regression multiple","K plus proches voisins", 
+                                   "Arbre de décision", "Forêt aléatoire",
+                                   "Réseau de neurone", "L2 Boosting", "Xgboost"),RMSE=0, R_square= 0)
+
+blocs_5_3 <- vfold_cv(data_EDMD.train, v = 5,repeats = 3)
+
+```
+
+
+# Algorithme de régression linéaire multiple - Avec sélection de variable 
+
+
+
+```{r}
+# Application de bestglm
+best_BIC_lm <- data_EDMD_dummify.train %>%
+  bestglm(method = "forward", IC = "BIC")
+
+# Le meilleur model
+glm_best_model= best_BIC_lm$BestModel
+```
+
+
+```{r}
+
+# Performance du model 
+glm_best_model_pred= predict(glm_best_model, newdata= data_EDMD_dummify.test)
+
+glm_best_rmse_and_rsq= rmse_and_rsq(the_preds= glm_best_model_pred, test_values= data_EDMD_dummify.test$cp_EDMD)
+
+models_pred_adjusted[1,2]= glm_best_rmse_and_rsq[1]
+models_pred_adjusted[1,3]=  glm_best_rmse_and_rsq[2]
+```
+
+```{r}
+best_BIC_lm
+```
+
+
+# K voisins les plus proches 
+
+```{r}
+set.seed(1234)
+# Définition du modèle KNN (régression)
+knn_spec_adj <- nearest_neighbor(neighbors = tune(),
+                                 weight_func = tune(),
+                                 dist_power = tune()) %>%
+  set_engine("kknn") %>%
+  set_mode("regression")
+
+
+# Workflow
+knn_wf_adj <- workflow() %>%
+  add_model(knn_spec_adj) %>%
+  add_recipe(data_recipe) 
+
+#Réechantillonnage
+knn_grid <- expand.grid(neighbors = c(3, 5, 7, 10, 15, 20, 25, 30),       # nombre de voisins k
+                       weight_func = c("rectangular", "triangular"), # pondération uniforme
+                       dist_power = c(1, 2, 3) )     # distance euclidienne
+                       
+# visualisation des erreurs
+knn_resample <- knn_wf_adj %>% tune_grid(resamples =blocs_5_3, 
+                                    grid = knn_grid,
+                                    metrics = metric_set(rmse,rsq))
+
+# Meilleur modèle
+#rm(knn_res, knn_adj_finale)
+best_params_knn <- knn_resample |>
+  select_best(metric="rmse")
+
+# Ajustement final
+knn_adj_finale <- knn_wf_adj %>%
+  finalize_workflow(best_params_knn) %>%
+  fit(data= data_EDMD.train)
+
+# Prédiction sur les données de test
+preds_knn_adj <- predict(knn_adj_finale, data_EDMD.test) %>%
+  bind_cols(data_EDMD.test %>% dplyr::select(cp_EDMD))
+
+
+# Évaluation de la prévision
+
+metrics_knn_adj= metrics(data = preds_knn_adj, truth = cp_EDMD, estimate = .pred)[c(1, 2),]
+
+models_pred_adjusted[2,2]= metrics_knn_adj$.estimate[1]
+
+models_pred_adjusted[2,3]= metrics_knn_adj$.estimate[2]
+```
+
+
++ Meilleur hyperparamètre du meilleur 
+
+```{r}
+best_params_knn
+```
+
+
+```{r}
+knn_resample %>%  autoplot()
+```
+
+
+# Arbre de décision 
+
+```{r}
+
+set.seed(1234)
+# Définition de l'arbre de décision (régression)
+tree_spec <- decision_tree(cost_complexity =tune(),
+                           min_n = tune()) %>%
+  set_engine("rpart") %>%
+  set_mode("regression")
+
+# Workflow
+tree_wf_adj <- workflow() %>%
+  add_model(tree_spec) %>%
+  add_formula(cp_EDMD ~ .)
+
+#Réechantillonnage
+tree_grid_adj <- expand.grid(cost_complexity = c(0.001, 0.005, 0.01, 0.05, 0.1), # Paramètre de complexité (alpha)
+                         min_n = c(5, 10, 15, 20) )             # Taille minimale des noeuds
+                           
+                       
+# visualisation des erreurs
+tree_adj_resample <- tree_wf_adj %>% tune_grid(resamples = blocs_5_3, 
+                                    grid = tree_grid_adj,
+                                    metrics = metric_set(rmse,rsq))
+  
+# Meilleur modèle
+#rm(tree_adj_resample, tree_adj_finale)
+
+best_params_tree <- tree_adj_resample |>
+  select_best(metric="rmse")
+
+# Ajustement final
+tree_adj_finale <- tree_wf_adj %>%
+  finalize_workflow(best_params_tree) %>%
+  fit(data= data_EDMD.train)
+
+# Prédiction sur les données de test
+preds_tree_adj <- predict(tree_adj_finale, data_EDMD.test) %>%
+  bind_cols(data_EDMD.test %>% dplyr::select(cp_EDMD))
+
+
+# Évaluation de la prévision
+
+metrics_tree_adj= metrics(data = preds_tree_adj, truth = cp_EDMD, estimate = .pred)[c(1, 2),]
+
+models_pred_adjusted[3,2]= metrics_tree_adj$.estimate[1]
+
+models_pred_adjusted[3,3]= metrics_tree_adj$.estimate[2]
+
+```
+
+
+# Visualisation de l'erreur de validation 
+
+```{r}
+tree_adj_resample %>% autoplot()
+```
+
+
++ Meilleur hyperparamètre du meilleur 
+
+```{r}
+best_params_tree
+```
+
+
+```{r}
+# Importance des variables
+model_tree_adj <- extract_fit_parsnip(tree_adj_finale)
+
+# Afficher directement le graphique d’importance des variables
+vip(model_tree_adj$fit,importance="impurity")
+```
+
+# Foret aléatoire 
+
+```{r}
+
+set.seed(1234)
+# Forêt aléatoire(Random forest)
+
+tune_spec <- rand_forest(mtry = tune(),
+                         min_n= tune(),
+                         trees= tune()) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("regression")
+
+rf_wf <- workflow() %>%
+  add_model(tune_spec) %>%
+  add_formula(cp_EDMD ~ .)
+
+# Réechantillonnage
+
+rf_grid <- expand.grid(mtry= c(10, 20, 35, 55), # sqrt(112)≈11, donc autour de cette valeur
+                       min_n= c(5, 10, 20, 50), # Réduit car RF gère bien le surapprentissage
+                       trees= c(100, 300, 500)) # Moins de variation, focus sur valeurs efficaces
+
+# visualisation des erreurs
+rf_resample <- rf_wf %>% tune_grid(resamples = blocs_5_3, grid = rf_grid,
+            metrics = metric_set(rmse,rsq))
+
+# Meilleur modèle
+best_parameter_rf <- rf_resample |>
+  select_best(metric="rmse")
+
+
+# Ajustement final
+foret_finale <- rf_wf %>%
+  finalize_workflow(best_parameter_rf) %>%
+  fit(data= data_EDMD.train)
+
+# Prédiction sur les données de test
+preds_foret <- predict(foret_finale, data_EDMD.test) %>%
+  bind_cols(data_EDMD.test %>% dplyr::select(cp_EDMD))
+
+
+# Évaluation de la prévision
+
+metrics_foret= metrics(data = preds_foret, truth = cp_EDMD, estimate = .pred)[c(1, 2),]
+
+models_pred_adjusted[4,2]= metrics_foret$.estimate[1]
+
+models_pred_adjusted[4,3]= metrics_foret$.estimate[2]
+```
+
+
+# Visualisation de l'erreur de validation 
+
+```{r}
+rf_resample %>% autoplot()
+```
+
++ Meilleur hyperparamètre du meilleur 
+
+```{r}
+best_parameter_rf
+```
+
+
+```{r}
+# Importance des variables
+modele_rf <- extract_fit_parsnip(foret_finale)
+
+# Afficher directement le graphique d’importance des variables
+vip(modele_rf$fit,importance="impurity")
+```
+
+
+
+## Reseau de neurone
+
+
+```{r, warning=FALSE, error= FALSE}
+set.seed(1234)
+
+# Construction du modèle séquentiel
+model_rn <- keras_model_sequential()
+model_rn$add(
+  layer_dense(
+    units = 50,
+    input_shape = c(118),
+    activation = "relu",
+    kernel_regularizer = keras$regularizers$l2(0.01)
+  )
+)
+model_rn$add(layer_dropout(rate = 0.3))  # dropout pour éviter le surapprentissage
+model_rn$add(layer_dense(units = 50, activation = "relu",
+              kernel_regularizer = keras$regularizers$l2(0.01)))
+model_rn$add(layer_dropout(rate = 0.3))  # dropout pour éviter le surapprentissage
+
+model_rn$add(layer_dense(units = 1, activation = "linear"))
+
+# Compilation du modèle (syntaxe corrigée)
+model_rn$compile(
+  optimizer = optimizer_adam(learning_rate = 0.001),
+  loss = "mean_squared_error",
+  metrics = list("mse")
+)
+
+# Affichage du résumé du modèle
+model_rn$summary()
+
+# rm(history, model_rn)
+# Entraînement du modèle
+
+history_rn <- model_rn$fit(
+  x = Xtrain_mat_scaled,
+  y = Ytrain_mat,
+  epochs = 200L,  # Utiliser des entiers explicites
+  batch_size = 33L,
+  validation_split = 0.2,
+  verbose = 0L
+)
+
+# Prédictions sur l'échantillon test
+predictions_rn <- model_rn$predict(Xtest_mat_scaled)
+
+# Évaluation de la prévision
+rn_rmse_and_rsq= rmse_and_rsq(the_preds= predictions_rn, test_values= Ytest_mat)
+
+models_pred_adjusted[5,2]=  rn_rmse_and_rsq[1]
+models_pred_adjusted[5,3]= rn_rmse_and_rsq[2]
+```
+
+
++ Courbe de d'entrainement et de validation 
+
+```{r}
+
+# Extraction des métriques d'historique
+loss_train <- history_rn$history$loss
+loss_val <- history_rn$history$val_loss
+
+# Création du dataframe pour la visualisation
+epochs <- 1:length(loss_train)
+df_metrics <- data.frame(
+  epoch = rep(epochs, 2),
+  loss = c(loss_train, loss_val),
+  type = c(rep("Entraînement", length(loss_train)), 
+           rep("Validation", length(loss_val)))
+)
+
+# Visualisation des courbes
+ggplot(df_metrics, aes(x = epoch, y = loss, color = type)) +
+  geom_line(size = 1.2) +
+  scale_color_manual(values = c("Entraînement" = "#1f77b4", "Validation" = "#ff7f0e")) +
+  labs(
+    title = "Courbes d'entraînement et de validation",
+    subtitle = "Évolution de la perte au cours des époques",
+    x = "Époque",
+    y = "Perte (Loss)",
+    color = "Type"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank()
+  ) +
+  scale_x_continuous(breaks = scales::pretty_breaks(n = 8)) +
+  scale_y_continuous(breaks = scales::pretty_breaks(n = 6))
+
+```
+
+
+## L2 boosting
+
+
+```{r}
+
+set.seed(1234)
+
+# Grille de paramètres à tester
+grid <- expand.grid(
+  n.trees = c(1000, 2000, 5000),
+  interaction.depth = c(1, 3, 5),
+  shrinkage = c(0.1, 0.05, 0.01),
+  n.minobsinnode = c(5, 10)
+)
+
+train_control <- trainControl(
+  method = "cv",
+  number = 5, 
+  repeats= 3
+)
+
+# Entraînement avec recherche en grille
+gbm_tuned <- train(
+  cp_EDMD ~ .,
+  data = data_EDMD.train,
+  method = "gbm",
+  distribution = "gaussian",
+  trControl = train_control,
+  tuneGrid = grid,
+  verbose = FALSE
+)
+
+# Résultats
+plot(gbm_tuned)
+
+#Meilleurs hyperparamètres 
+
+best_params <- gbm_tuned$bestTune
+
+# Entrainement finale
+gbm_final <- gbm(
+  cp_EDMD ~ .,
+  data = data_EDMD.train,
+  distribution = "gaussian",
+  n.trees = best_params$n.trees,
+  interaction.depth = best_params$interaction.depth,
+  shrinkage = best_params$shrinkage,
+  n.minobsinnode = best_params$n.minobsinnode,
+  verbose = FALSE
+)
+
+predictions_l2b <- predict(
+  gbm_final,
+  newdata = data_EDMD.test,
+  n.trees = best_params$n.trees
+)
+
+# Évaluation de la prévision
+metrics_l2_boost_adj <- rmse_and_rsq(the_preds= predictions_l2b, test_values= data_EDMD.test$cp_EDMD)
+
+models_pred_adjusted[6,2]= metrics_l2_boost_adj[1]
+
+models_pred_adjusted[6,3]= metrics_l2_boost_adj[2]
+```
+
++ Meilleur hyperparamètre du meilleur 
+
+```{r}
+best_params
+```
+
++ Importance des variables
+
+```{r}
+# Importance des variables
+vip(gbm_final,importance="impurity")
+```
+
+
+
+## Xgboost
+
+```{r, error= FALSE}
+set.seed(1234)
+
+# Définition du modèle Xgboost
+
+xgb_spec <- boost_tree(trees = tune(),
+                      learn_rate = tune(),
+                      mtry= tune(),
+                      min_n = tune(),  
+                      stop_iter = 20) %>%
+  set_engine("xgboost") %>%
+  set_mode("regression")
+
+  
+# Workflow
+xgb_wf <- workflow() %>%
+  add_model(xgb_spec) %>%  # Utilisation de l'alternative xgboost
+  add_formula(cp_EDMD ~ .)
+
+# Grille de paramètres
+xgb_grid <- expand.grid(
+  trees = c(50, 100, 200, 500, 1000), # XgBoost converge plus vite
+  learn_rate = c(0.01, 0.05, 0.1, 0.3), # Plage adaptée 
+  mtry = c(15, 20, 35, 55), 
+  min_n = c(2, 5, 10, 20)
+)
+
+# Réechantillonnage et tuning
+xgb_resample <- xgb_wf %>% 
+  tune_grid(resamples = blocs_5_3, 
+            grid = xgb_grid,
+            metrics = metric_set(rmse, rsq))
+
+# Meilleur modèle
+best_params_xgb <- xgb_resample %>%
+  select_best(metric = "rmse")
+
+# Ajustement final
+xgb_adj_finale <- xgb_wf %>%
+  finalize_workflow(best_params_xgb) %>%
+  fit(data = data_EDMD.train)
+
+# Prédiction sur les données de test
+preds_xgb_adj <- predict(xgb_adj_finale, data_EDMD.test) %>%
+  bind_cols(data_EDMD.test %>% dplyr::select(cp_EDMD))
+
+# Évaluation de la prévision
+metrics_xgb_adj <- metrics(data = preds_xgb_adj, truth = cp_EDMD, estimate = .pred)[c(1, 2),]
+
+models_pred_adjusted[7,2]= metrics_xgb_adj$.estimate[1]
+
+models_pred_adjusted[7,3]= metrics_xgb_adj$.estimate[2]
+```
+
+
++ Meilleur hyperparamètre du meilleur 
+
+```{r}
+best_params_xgb
+```
+
+
+```{r}
+xgb_resample %>% autoplot()
+```
+
++ Importance des variables
+
+```{r}
+# Importance des variables
+vip(xgb_adj_finale)
+```
+
+
++ Résumé des performances des modèles testés
+
+```{r}
+# Evaluation des modèles
+models_pred_adjusted
+```
+
+## Prédiction des financements des communes n'ayant pas demander de financement en 2024
+
+
+```{r}
+set.seed(1234)
+
+# Prétraitement des nouvelles données 
+
+df_preds_final_EDMD= data.frame(code_com= df_fonds_EDMD_non_finance %>% dplyr:: select(code_com))
+  
+data_EDMD_NF <- df_fonds_EDMD_non_finance %>% 
+  dplyr:: select(-code_com)
+
+# Définition de l'arbre de décision (régression)
+tree_spec_final <- decision_tree(cost_complexity = 0.001,
+                                 min_n = 20) %>%
+  set_engine("rpart") %>%
+  set_mode("regression")
+
+# Workflow
+tree_wf_final <- workflow() %>%
+  add_model(tree_spec_final) %>%
+  add_formula(cp_EDMD ~ .)
+
+# Ajustement direct sans validation croisée
+tree_final <- tree_wf_final %>%
+  fit(data = df_fonds_EDMD_Finance)
+
+# Prédiction sur les données de test
+df_preds_final_EDMD[, "cp_EDMD_preds"] <- predict(tree_final, data_EDMD_NF) 
+
+```
+
+
+# Cartographie des prédiction:
+
+```{r}
+# Jointure des données 
+
+df_fonds_EDMD_for_carto_pred <- df_fonds_EDMD_for_carto %>%
+  mutate(cp_EDMD= cp_EDMD/1000) %>%
+  left_join(df_preds_final_EDMD, by = "code_com") %>% 
+  dplyr:: select(code_com, cp_EDMD, cp_EDMD_preds)
+
+
+# Remplacer les valeurs manquantes de prédictions par les valeurs observées
+df_fonds_EDMD_for_carto_pred[,"cp_EDMD_preds"] <- ifelse(
+  is.na(df_fonds_EDMD_for_carto_pred$cp_EDMD_preds), 
+  # df_fonds_EDMD_for_carto_pred$cp_EDMD, 
+  0,
+  df_fonds_EDMD_for_carto_pred$cp_EDMD_preds
+)
+
+df_fonds_EDMD_for_carto_pred[,"cp_EDMD_all"] <- ifelse(
+  df_fonds_EDMD_for_carto_pred$cp_EDMD_preds==0, 
+  df_fonds_EDMD_for_carto_pred$cp_EDMD, 
+  df_fonds_EDMD_for_carto_pred$cp_EDMD_preds
+)
+
+# Créer les deux graphiques
+ggplot(df_fonds_EDMD_for_carto_pred) + 
+  geom_sf(aes(fill = cp_EDMD)) + 
+  scale_fill_continuous(low = "white", high = couleurs_1) +
+  theme_void() + 
+  coord_sf() 
+
+
+# Créer les deux graphiques
+ggplot(df_fonds_EDMD_for_carto_pred) + 
+  geom_sf(aes(fill = cp_EDMD_all)) + 
+  scale_fill_continuous(low = "lightgray", high = couleurs_1) +
+  theme_void() + 
+  coord_sf() 
+
+
+ggplot(df_fonds_EDMD_for_carto_pred) + 
+  geom_sf(aes(fill = cp_EDMD_preds)) + 
+  scale_fill_continuous(low = "beige", high = couleurs_1) +
+  theme_void() + 
+  coord_sf() 
+
+```
+
+# Autre modele de prédiction(spatiale)
+
+```{r}
+raster_planar<-st_rasterize(planar_sf_breizh) #créer un raster à partir de notre objet sf
+plot(raster_planar['cp_EDMD', ])
+```
+
+```{r}
+set.seed(1234)
+variable <-as.im(raster_planar['cp_EDMD']) # le raster a plusieurs variables, choisir le cp_EDMD
+
+modele_cp_EDMD<-ppm(ppp_points_breizh~ variable) #Modèle de poisson de notre processus ponctuel expliqué par le fonds_cp_EDMD
+modele_cp_EDMD 
+```
+
+```{r}
+#plot(effectfun(modele_cp_EDMD, "variable", se.fit = TRUE),legend = FALSE)
+plot(predict(modele_cp_EDMD), main = "Prédictions" ,col=col)
+```
+
+```{r}
+model_intercept <- ppm(ppp_points_breizh ~ 1)  #Null model
+anova(model_intercept, modele_cp_EDMD, test = "LRT") # Compare null to population model
+```
+
+
+# Enregistrement de la base de données finale avec les prédiction
+
+```{r}
+
+# df_fonds_EDMD= df_fonds_EDMD %>%
+#   mutate(across(starts_with(c("ae_", "cp_")), ~ .x * 1000))
+
+# df_fonds_EDMD[,"cp_EDMD_preds"]= df_fonds_EDMD_for_carto_pred$cp_EDMD_preds *1000
+# df_fonds_EDMD[,"cp_EDMD_all"]= df_fonds_EDMD_for_carto_pred$cp_EDMD_all *1000
+
+# df_fonds_EDMD= df_fonds_EDMD%>%
+#   mutate(across(starts_with(c("cp_EDMD_preds", "cp_EDMD_all")), ~ round(.x, 1))) 
+# df_fonds_EDMD  %>%  # Exclure geometry et code_insee
+#   write_csv("data_cp_EDMD_pred.csv")
+```
+

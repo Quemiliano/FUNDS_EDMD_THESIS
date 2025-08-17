@@ -15,6 +15,11 @@
 \usepackage{tikz}
 \usetikzlibrary{shapes,positioning}
 
+
+\usepackage{booktabs} % Pour des lignes de tableau plus esthétiques
+\usepackage{siunitx}  % Pour formater et aligner les nombres
+\usepackage{makecell} % Pour des sauts de ligne et un meilleur contrôle dans les cellules
+
 \setcounter{tocdepth}{4}
 \setcounter{secnumdepth}{4}
 
@@ -242,7 +247,7 @@ Mes remerciements s'adressent aussi aux collaborateurs de la DREAL et du NUMIH d
 \section{Modélisation de la répartition des financements "Écologie et développement des mobilités durables" en Bretagne}
 \vspace{4pt}
 
-\subsection{Contexte et introduction à la problèmatique}\\
+\subsection{Contexte et introduction à la problématique}\\
 
 \begin{figure}[htbp]
     \centering
@@ -267,7 +272,7 @@ Mes remerciements s'adressent aussi aux collaborateurs de la DREAL et du NUMIH d
 
 \item Dans un premier temps, nous présenterons la démarche de collecte des données mise en œuvre, ainsi qu’une modélisation statistique initiale visant à formuler et encadrer notre problématique. Dans un second temps, nous détaillerons les étapes de prétraitement des données et l’exploration des données  , en mettant l’accent sur l’analyse statistique descriptive et une analyse spatiale approfondie du phénomène étudié. Nous aborderons ensuite les différents modèles de machine learning mobilisés, en exposant leurs fondements, leur implémentation, ainsi que leurs performances appliquées à notre cas d’étude. L’objectif sera notamment de prédire les intervalles de montants de financement associés à la thématique analysée. Enfin, nous présenterons le développement d’une application intégrant les fonctionnalités clés issues de chaque phase de l’étude, dans une optique de réplicabilité et d’industrialisation du processus, en vue d’un déploiement à plus grande échelle.
 
-\subsection{Collecte des données et démarche statistique adoptéé}\\
+\subsection{Collecte des données et démarche statistique adoptée}\\
 \label{sec: data_collect}
 
 \subsubsection{Collecte des données:}
@@ -367,7 +372,7 @@ Ces données sont recueillies à l’échelle communale, exclusivement pour la r
 
 \item Sont considérées comme nulles certaines valeurs des variables quantitatives ou qualitatives associées à des individus (ici, les communes) pour lesquels aucune information n'était disponible dans la base de données d’enrichissement jointe à la base initiale. En effet, les données fournies ne concernent que les cas pour lesquels une valeur existe. Par exemple, pour la variable relative au statut de desserte en TGV, seules les communes desservies sont renseignées ; les communes absentes de la base sont alors considérées comme non desservies. Nous avons également dû déterminer le type de certaines variables en fonction de leur composition, en combinant une méthode systématique avec du bon sens. Lorsqu’une variable contenait plusieurs valeurs par commune, nous l’avons transformée en variable de comptage. À l’inverse, lorsqu’elle contenait peu de modalités et que sa nature sémantique s’y prêtait, nous l’avons convertie en variable binaire. Ce travail de typage a été affiné à l’aide d’échanges avec des collègues ayant une meilleure connaissance métier du sujet.\\
 
-\item Concernant la création d’indicateurs, nous avons réalisé plusieurs opérations d’agrégation sur des modalités clés afin d’évaluer des totaux pertinents. À titre d’exemple, nous avons construit des indicateurs de comptage d’établissements en comptabilisant, pour chaque typologie, le nombre d’établissements ayant reçu une aide financière. Cela a nécessité une agrégation préalable selon la typologie des établissements. D’autres opérations ont consisté en des calculs de moyennes, comme pour l’évaluation de la consommation d’énergie par habitant selon les secteurs. Enfin, certains indicateurs ont été construits à partir de taux, tels que le taux de subvention, défini comme le rapport entre le nombre de thématiques financées dans une commune et le nombre total de thématiques éligibles. Pour plus de détails sur les opérations de prétraitement effectuées sur la base de données, vous pouvez consulter la section dédiée sur  \href{}{ce dépot GitHub}.\\
+\item Concernant la création d’indicateurs, nous avons réalisé plusieurs opérations d’agrégation sur des modalités clés afin d’évaluer des totaux pertinents. À titre d’exemple, nous avons construit des indicateurs de comptage d’établissements en comptabilisant, pour chaque typologie, le nombre d’établissements ayant reçu une aide financière. Cela a nécessité une agrégation préalable selon la typologie des établissements. D’autres opérations ont consisté en des calculs de moyennes, comme pour l’évaluation de la consommation d’énergie par habitant selon les secteurs. Enfin, certains indicateurs ont été construits à partir de taux, tels que le taux de subvention, défini comme le rapport entre le nombre de thématiques financées dans une commune et le nombre total de thématiques éligibles. Pour plus de détails sur les opérations de prétraitement effectuées sur la base de données, vous pouvez consulter la section dédiée sur  \href{https://github.com/Quemiliano/FUNDS_EDMD_THESIS}{ce dépot GitHub}.\\
 
 
 \subsubsection{Données manquantes}
@@ -399,7 +404,7 @@ MC\_agricole\_mwh & 15\\
 \label{tab: nadata}
 \end{table}
 
-\item La dernière étape du prétraitement et de l’enrichissement de la base de données consiste en la gestion des données manquantes. Avant cela, une répartition des valeurs manquantes par variable a été réalisée, comme présenté dans le tableau \ref{tab: nadata}. En résumé, nous avons identifié moins de 150 valeurs manquantes, ce qui représente moins de 0,1 \% de l’ensemble des données, sur une base de taille  $n \times p= 1 204 \times 122$ valeurs .Plutôt que de supprimer les observations incomplètes, nous avons choisi de les conserver en appliquant une stratégie d’imputation, plus précisément l’imputation multiple par chaînes de Markov (MICE : Multiple Imputation by Chained Equations). Cette méthode repose sur un algorithme de Monte Carlo par chaînes de Markov (MCMC), tel qu’implémenté dans le package mice sous R.\\
+\item La dernière étape du prétraitement et de l’enrichissement de la base de données consiste en la gestion des données manquantes. Avant cela, une répartition des valeurs manquantes par variable a été réalisée, comme présenté dans le tableau \ref{tab: nadata}. En résumé, nous avons identifié moins de 150 valeurs manquantes, ce qui représente moins de 0,12 \% de l’ensemble des données, sur une base de taille  $n \times p= 1 204 \times 113$ valeurs .Plutôt que de supprimer les observations incomplètes, nous avons choisi de les conserver en appliquant une stratégie d’imputation, plus précisément l’imputation multiple par chaînes de Markov (MICE : Multiple Imputation by Chained Equations). Cette méthode repose sur un algorithme de Monte Carlo par chaînes de Markov (MCMC), tel qu’implémenté dans le package mice sous R.\\
 
 \item Nous avons réalisé 5 imputations (m = 5), en utilisant la méthode de la forêt aléatoire (random forest) pour les variables d’échelle. Le principe de cette méthode consiste à imputer successivement les valeurs manquantes à chaque itération, puis à ne conserver, pour chaque donnée, la valeur imputée lors de la dernière itération. Ce choix méthodologique est pleinement justifié dans notre cas, nos données manquantes étant soit complètement aléatoires, soit suivant une structure arbitraire. Par ailleurs, cette approche permet de limiter les biais potentiels tout en tirant parti de la taille relativement importante de notre jeu de données.\\
 
@@ -435,7 +440,51 @@ MC\_agricole\_mwh & 15\\
     \label{fig: repr_cp_EDMD}
 \end{figure}
 
-\item D’après les deux premiers graphiques de la figure \ref{fig: repr_cp_EDMD} un nuage de points et un histogramme représentant respectivemment la fréquence des communes selon le montant reçu, la quasi-totalité des communes bénéficiaires du financement EDMD ont perçu un montant inférieur à 2,000,000 €. Cependant, certaines communes se démarquent par des montants atypiquement élevés par rapport aux autres. Parmi ces communes figurent notamment : \textbf{Rennes, Quimper, Ploufragan, Brest, Lorient et Vannes.}
+
+
+\begin{table}
+\centering
+\begin{tabular}{|l|l|c|}
+\hline
+\textbf{Département} & \textbf{Communes} & \textbf{Montant payé EDMD(en €)} \\
+\hline
+\hline
+
+& Bréhand & 753 812 450 \\
+Côtes-d'Armor & Ploufragan & 277 845 263 \\
+ & Saint-Brieuc & 53 204 530 \\
+\hline
+
+ & Brest & 73 017 456 \\
+ & Concarneau & 150 426 108 \\
+Finistère & Guipavas & 71 167 270 \\
+& Quimper & 160 415 649 \\
+& Bruz & 109 330 449 \\
+\hline
+
+&Cesson-Sévigné & 318 686 034 \\
+&Chantepie & 72 690 499 \\
+ & Domloup & 254 688 718 \\
+Ille-et-Vilaine  & Guichen & 94 538 360 \\
+& L'Hermitage & 167 861 324 \\
+ & Louvigné-de-Bais & 140 256 975 \\
+ &Miniac-Morvan & 142 153 781 \\
+ & Rennes   & 410 423 535 \\
+\hline
+
+& Baud & 51 777 760 \\
+& Hennebont & 342 421 140 \\
+Morbihan & Kervignac & 73 996 164 \\
+& Theix-Noyalo & 58 837 584 \\
+& Vannes & 200 645 232 \\
+\hline
+\end{tabular}
+\caption{Communes avec des montants EDMD élevés}
+\label{tab: hight_finance_EDMD}
+\end{table}
+
+
+\item D’après les deux premiers graphiques de la figure \ref{fig: repr_cp_EDMD} un nuage de points et un histogramme représentant respectivemment la fréquence des communes selon le montant reçu, la quasi-totalité des communes bénéficiaires du financement EDMD ont perçu un montant inférieur à 50,000,000 €. Cependant, certaines communes se démarquent par des montants atypiquement élevés par rapport aux autres. Ces communes figurent dans le tableau \ref{fig: hight_finance_EDMD}, où sont présentés leurs montants de financement au titre de l’EDMD.
 
 
 
@@ -643,23 +692,23 @@ MC\_agricole\_mwh & 15\\
 
 \item Ces observations suggèrent que les financements du fonds EDMD tendent à se concentrer sur des territoires disposant déjà d’un tissu socio-économique relativement structuré, avec une certaine vitalité associative ou sportive, une densité d’entreprises installées et une population active significative. \\
 
-\subsection{Statistiques Spatiale}
+\subsection{Statistiques Spatiales}
 
-\begin{figure}[htbp]
+\begin{figure}
     \centering
     \includegraphics[width=1\linewidth]{densitite_EDMD.png}
     \caption{Carte de densité du fonds EDMD en Bretagne(communes bénéficiaires uniquement)}
     \label{fig: densite_edmd}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}
     \centering
     \includegraphics[width=1\linewidth]{map_factor_and_ val_cp_EDMD.png}
     \caption{Cartographie de la répartition du fonds EDMD en Bretagne.}
     \label{fig: map_factor_and_val_cp_EDMD}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}
     \centering
     \includegraphics[width=1\linewidth]{repr_taux_sub.png}
     \caption{Cartographie du taux de subvention des communes en Bretagne}
@@ -923,14 +972,16 @@ $$I_i \;=\; \bigl(y_i - \bar y\bigr)\;\sum_{j \neq i} W_{ij}\,\bigl(y_j - \bar y
         \item Arbres de décision
         \item Forêt aléatoire (Random Forest)
         \item Réseaux de neurones
-        \item Gradient Boosting 
-        \item SVR
+        \item Gradient Boosting (L2-boosting)
+        \item Xgboost
     \end{itemize}
 \end{itemize}
 
 \item Afin de rester concise et de ne pas surcharger le corps du mémoire, nous avons jugé raisonnable d'inclure les résumés de présentation du fonctionnement de chacun de ces modèles dans l'annexe \ref{sec: ML_resume_ax} dédiée à cet effet.\\
 
-\item Dans un premier temps, nous avons évalué les performances des modèles de prévision dans leur forme la plus simple, c’est-à-dire sans ajustement particulier et avec des paramètres par défaut, raisonnables et peu coûteux. À cette fin, nous avons notamment testé une régression linéaire simple, un arbre de décision(sans limite de profondeur), un réseau de neurones (perceptron) et l’algorithme des k plus proches voisins (avec 3 voisins). Cette approche nous a permis d’identifier le modèle offrant le meilleur compromis entre performance et coût. Dans un second temps, nous avons proposé ces mêmes modèles, mais cette fois ajustés soit par rééchantillonnage,calibrage, ou soit par sélection automatique de variables. Enfin, pour approfondir nos prédictions, nous avons développé un modèle spatial de Poisson qui prédit l’intensité du processus ponctuel dans chaque commune, en utilisant les variables explicatives disponibles.\\
+\item Dans un premier temps, nous avons évalué les performances des modèles de prévision dans leur forme la plus simple, c’est-à-dire sans ajustement particulier et avec des hyperparamètres par défaut, raisonnables et peu coûteux. À cette fin, nous avons notamment testé une régression linéaire simple, un arbre de décision(sans limite de profondeur), un réseau de neurones (perceptron) et l’algorithme des k plus proches voisins (avec 3 voisins). Cette approche nous a permis d’identifier le modèle offrant le meilleur compromis entre performance et coût. 
+
+\item Dans un second temps, nous avons proposé ces mêmes modèles de base, et d'autres  mais cette fois ajustés soit par rééchantillonnage, calibrage, ou soit par sélection automatique de variables. Enfin, pour approfondir nos prédictions, nous avons développé un modèle spatial de Poisson qui prédit l’intensité du processus ponctuel dans chaque commune, en utilisant les variables explicatives disponibles.\\
 
 
 \newpage
@@ -965,7 +1016,7 @@ $$\quad \quad \quad \quad \quad (y, y') \mapsto (y - y')^2$$
 \item Le risque quadratique est alors :  
 $$R(m) = \mathbf{E}\left[(Y - m(X))^2\right]$$  et la fonction optimale (fonction de régression) est donnée par :   $$m^*(x) = \mathbf{E}[Y \mid X = x].$$
 
-\item Dans notre étude, nous avons utilisé une version améliorée du risque quadratique : 
+\item Dans notre étude, nous avons utilisé d'une part le risque quadratique  (\textit{Mean Squared Error}) pour suivre la performance pendant l’entraînement et la validation et d'autre part une version améliorée pour évaluer la qualité des prévisions : 
 la \textit{Root Mean Squared Error} (RMSE), qui correspond à la racine carrée du risque quadratique 
 (c'est-à-dire l'écart-type des erreurs de prédiction).  \item La formule du RMSE s'écrit alors : $$\[
 \text{RMSE} = \sqrt{ \frac{1}{n} \sum_{i=1}^{n} \left( Y_i - \widehat{Y}_i \right)^2 }
@@ -1003,20 +1054,215 @@ R^2 = \frac{\text{SCE}}{\text{SCT}} = 1 - \frac{\text{SCR}}{\text{SCT}}.
 \subsubsection{Construction des modèles et comparaison des performances de prévisions:}
 
 
-\item \textbf{Modèles de base(simples)}
+\item \textbf{Les modèles de base}
 
-\item Régression linéaire (modèle sans séléction de variable)
-
-
-\item \textbf{Modèles ajustés et autres modèles de prédictions}
+\item Comme indiqué précédemment, l’objectif de ces modèles est d’utiliser le moins de ressources possible tout en obtenant de bons résultats ou, à défaut, des résultats acceptables. Le tableau \ref{tab: simple_models_res} ci-dessous présente les performances de ces modèles, entraînés sur les observations d’apprentissage $D_{app}$ et évalués sur les données de test $D_{test}$. Il est important de garder à l’esprit que le RMSE calculé est exprimé en milliers d’euros.
 
 
-\subsubsection{Prédictions du meilleurs modèles sur les nouvelles observations}:
+\begin{table}[htbp]
+\centering
+\caption{Récapitulatif des performances des modèles de base}
+\label{tab: simple_models_res}
+\sisetup{
+  output-decimal-marker={.} % Utilise une virgule pour le séparateur décimal
+ % scientific-notation=true,
+ % table-format=1.4e+2 % Format pour les nombres scientifiques
+}
+\begin{tabular}{
+  l % Modèle
+  l % Type d'algorithme
+  l % Paramètres
+  S % RMSE
+  S[table-format=1.4e-1] % R2
+}
+\toprule
+\textbf{Modèle} & \textbf{\makecell{Type\\d'algorithme}} & \textbf{Paramètres et hyperparamètres} & {\textbf{RMSE}} & {\textbf{R²}} \\
+\midrule
+Regression simple & Linéaire & \small \makecell[l]{ \beta_0 , \beta_{taux\_subvention} } & \textcolor{black}{28101.55} & \textcolor{black}{0.01}	 \\
+\addlinespace % Ajoute un petit espace vertical
+\midrule
+Arbre de décision & Non linéaire & \makecell[l]{cost\_complexity = 0.01} & \textcolor{violet}{21945.37} & \textcolor{violet}{0.73} \\
+\addlinespace
+\midrule
+KNN & Non linéaire & \makecell[l]{neighbors = 5 \\ weight\_func = rectangular \\ dist\_power = 2} & \textcolor{black}{23673.97} & \textcolor{black}{0.19}\\
+\addlinespace
+\midrule
+Perceptron & Linéaire & \makecell[l]{Activation = linear \\ Optimizer = adam\\ learning\_rate = 0.5 \\ loss = mean\_squared\_error \\ Epochs = 200 \\ Batch\_size = 30} & \textcolor{black}{24899.68} & \textcolor{black}{0.02}  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\item Rappel de quelques hyperparamètres peu intuitifs :
+
+\begin{itemize}
+    \item \textbf{cost\_complexity :} paramètre de coût-complexité qui mesure la complexité de l’arbre ; plus cette valeur est faible, plus l’arbre est complexe.
+    \item \textbf{dist\_power :} paramètre utilisé pour calculer la distance de Minkowski. Ici dist\_power = 2, il s'agit de la distance euclidienne.
+    \item \textbf{weight\_func :} type de pondération utilisé ; dans notre cas, nous avons choisi une pondération uniforme.
+    \item \textbf{batch\_size :} taille des lots (échantillons) d’entraînement extraits des données d’apprentissage pour l’entraînement de notre perceptron.
+\end{itemize}
 
 
-\item \textbf{ Comparaison cartographique des prédiction du meilleur modèle et du modèle spatial}
+\item L'arbre de décision présente les meilleures performances parmi les modèles évalués avec une RMSE de 21~945{,}37 milliers d'euros (soit environ 21~945~370€) et un coefficient de détermination $R^2 = 0{,}73$. Cette RMSE indique qu'en moyenne, l'erreur absolue de prédiction du financement EDMD en Bretagne est d'environ 21~945~370€. Concrètement, cela signifie que nos prédictions présentent une marge d'erreur typique de 21~945~000€ : parfois le modèle se trompe de moins (par exemple 10M€), parfois de plus (par exemple 35M€), mais en moyenne l'écart avec la réalité tourne autour de 22M€. Bien qu'il s'agisse du meilleur résultat obtenu dans notre comparaison de modèles, cette erreur demeure importante relativement aux montants de financement considérés, suggérant des limites dans la capacité prédictive du modèle.\\
+
+\item L'amplitude de cette erreur peut s'expliquer par plusieurs facteurs méthodologiques. D'une part, la présence de communes présentant des montants de financement atypiques, identifiées lors de l'analyse exploratoire, constitue une source d'hétéroscédasticité. D'autre part, la RMSE, étant basée sur l'erreur quadratique moyenne, accorde un poids disproportionné aux grandes erreurs de prédiction par rapport aux petites erreurs. Cette sensibilité aux valeurs aberrantes peut conduire à une évaluation pessimiste de la performance globale du modèle sur l'ensemble de la distribution.\\
+
+\item Le coefficient de détermination $R^2 = 0{,}73$ indique que le modèle explique 73\% de la variance totale des montants de financement EDMD. Cette valeur suggère une capacité explicative satisfaisante, bien que 27\% de la variabilité demeure inexpliquée. Pour améliorer les performances prédictives, il conviendrait d'explorer des approches méthodologiques complémentaires, notamment : (i) des techniques de régularisation pour réduire le sur-apprentissage, (ii) des méthodes d'ensemble (bagging, boosting, stacking) pour réduire la variance des prédictions, et (iii) des transformations des variables ou des approches de traitement des valeurs aberrantes pour améliorer la robustesse du modèle.\\
+
+\begin{figure}
+
+    \centering
+    \includegraphics[width=0.74525
+    \linewidth]{importance_tree_vars.png}
+    \caption{Importance des variables de l'arbre de décision}
+    \label{fig: importance_variables}
+\end{figure}
 
 
+
+
+\item L'analyse de l'importance des variables issues de l'arbre de décision (figure \ref{fig: importance_variables}) révèle des niveaux d'importance différenciés parmi les 10 variables retenues. Une variable présente une très forte importance : le montant engagé EDMD, directement associé à la variable cible. Cinq variables affichent une importance modérée : le nombre d'établissements du secteur « Information et communication », les montants engagés pour le financement relatif à la thématique « Administration générale et territoriale de l'État », la part de licenciés sportifs, le nombre total d'entreprises, et les émissions de gaz à effet de serre. Enfin, quatre variables montrent une très faible importance dans la qualité du modèle : les montants payés et engagés pour le financement de la thématique « Sport, jeunesse et vie associative », le montant payé toutes thématiques de financement confondues pour les collectivités, et le nombre d'établissements d'« Activités scientifiques, technologiques, de services et administratives ».\\
+
+\item D'après cette importance de variable, la distribution des financements EDMD en Bretagne suit une logique territoriale multidimensionnelle qui dépasse les seuls critères environnementaux. Les financements sont prioritairement alloués aux territoires combinant plusieurs facteurs clés : une capacité d'innovation numérique (présence d'entreprises du secteur information-communication), une ingénierie publique solide (investissements dans l'administration territoriale), un tissu économique dynamique (densité d'entreprises) et une demande sociale structurée pour les mobilités actives (pratique sportive). L'urgence environnementale (émissions de GES élevées) constitue également un facteur déterminant, suggérant une approche compensatoire visant à accompagner en priorité les territoires les plus émetteurs. Cette approche révèle une stratégie ciblée : les financements EDMD privilégient les territoires qui conjuguent à la fois un écosystème favorable à l'innovation et des enjeux environnementaux majeurs. Les investissements publics sont ainsi orientés vers les zones les mieux équipées pour réussir la transition vers les mobilités durables.\\
+
+
+\item \textbf{Modèles ajustés et approches prédictives complémentaires}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.60\linewidth]{calibrage_algo.png}
+    \caption{Processus d'optimisation des hyperparamètres}
+    \label{fig: calibrage_algo}
+\end{figure}
+
+\item Notre objectif est d'atteindre un compromis biais-variance optimal pour nos modèles de prédiction, ce qui correspond à une complexité de modèle optimale. Il est important de noter que le choix des hyperparamètres $\theta$  s'avère critique pour cet équilibre. Des valeurs trop contraignantes peuvent rendre le modèle peu flexible, conduisant à un sous-apprentissage (biais élevé), tandis que des valeurs trop permissives peuvent entraîner un sur-apprentissage (variance élevée).\\
+
+\item Une attention particulière est portée aux méthodes de rééchantillonnage car elles permettent d'estimer de manière plus fiable le risque de généralisation $R(f_n)$ de l'algorithme de prévision. Ces méthodes résolvent le problème de l'évaluation optimiste du modèle sur les données d'entraînement. Plusieurs approches de rééchantillonnage sont possibles, mais dans notre cas nous utiliserons uniquement la validation croisée. \\
+
+\item Pour cette méthode de rééchantillonnage, on sépare les données en $K$ blocs, la plupart du temps $K=10$. Parmi ces $K$ blocs, on extrait un total de $K-1$ blocs de même taille par sélection de données de façon aléatoire ; ceux-ci seront consacrés à l'apprentissage $B_{1}, \ldots, B_{K-1}$, et le $K^{\text{ème}}$ bloc constitue les données tests.
+
+\item En entrée de l'algorithme, on insère les blocs $B_{1}, \ldots, B_{K-1}$ (blocs d'apprentissage) et le $K^{\text{ème}}$ bloc (bloc de test). L'algorithme de prévision s'ajuste en utilisant uniquement les blocs d'apprentissage $B_{1}, \ldots, B_{K-1}$. On obtient alors une nouvelle fonction de prévision $f_K(\cdot)$ entraînée sur ces données. À l'issue de l'entraînement, cette fonction calcule les valeurs prédites pour chacune des observations $x_i$ de l'échantillon test par $f_K(x_i)$.
+
+\noindent On peut donc calculer le risque du bloc $k$ de la façon suivante :
+$$R_{\text{cv}}(f) = \frac{1}{K} \sum_{k=1}^K \hat{R}(f_k)$$
+
+\item D'une part, dans la suite de notre étude, nous avons utilisé uniquement des validations croisées à 5 blocs avec 3 répétitions. Ce choix méthodologique a été motivé par la taille de nos données d'entraînement ($n = 352$ observations et $p = 112$ variables), ce qui équivaut à des blocs d'environ 70 observations. Il est important de noter que nous avons effectué des prétraitements des données avant l'application de certains algorithmes : standardisation pour les algorithmes nécessitant des données normalisées (réseaux de neurones), encodage des variables catégorielles en variables binaires (dummy variables), et suppression des variables dépendantes pour les algorithmes gérant mal les variables catégorielles et la multicolinéarité (régression linéaire multiple).\\
+
+\item D'autre part, nous avons effectué simultanément un calibrage des algorithmes dont l'objectif est de construire des grilles d'hyperparamètres pour chaque algorithme et de sélectionner les hyperparamètres optimaux $\boldsymbol{\theta}$ dans la construction du modèle de prédiction. Cette sélection des hyperparamètres optimaux constitue une stratégie pour gérer le problème de sur-apprentissage (\textit{overfitting}), maintenir la fiabilité des scores de probabilité produits par les modèles, et garantir une bonne capacité de généralisation à de nouvelles données. À titre illustratif, la figure~\ref{fig: calibrage_algo} présente ce processus d'optimisation des hyperparamètres visant à minimiser le risque de généralisation. \\
+
+
+\begin{table}[htbp]
+\centering
+\caption{Récapitulatif des performances des modèles ajustés}
+\label{tab: ajust_models_res}
+\sisetup{
+  output-decimal-marker={.} % Utilise une virgule pour le séparateur décimal
+ % scientific-notation=true,
+ % table-format=1.4e+2 % Format pour les nombres scientifiques
+}
+\begin{tabular}{
+  l % Modèle
+  l % Grille d'hyperparamètres
+  l % Nombre total de modèles entraînés
+  l % Meilleur hyperparamètres
+  S % RMSE
+  S[table-format=1.4e-1] % R2
+}
+\toprule
+\textbf{Modèle} & \textbf{\makecell[l]{Paramètre et grille\\ d'hyperparamètres}} & \textbf {\makecell[l]{Total modèles \\entraînés}} & \textbf{\makecell[l]{Meilleurs \\hyperparamètres}} & {\textbf{RMSE}} & {\textbf{R²}} \\
+\midrule
+\makecell[l]{Regression\\ multiple} & \small \makecell[l]{ \beta_{0}, \beta_{1}, \dots,\beta_{112}\\ selection = forward \\ IC= BIC} & 1278 & \makecell[l]{\makecell[l]{Voir annexe \ref{fig: significativite_var_lm_multiple}:\\- Importance des \\variables  \\} } & \textcolor{black}{26142.41}	& \textcolor{black}{0.79}\\
+\addlinespace % Ajoute un petit espace vertical
+\midrule
+\makecell[l]{K plus proches \\voisins} & \small \makecell[l]{ neighbors= [3, 5, 7, 10, \\15, 20, 25, 30]\\ weight\_func= [triangular,\\ rectangular,triangular]\\ dist\_power= [1, 2, 3]\\ cv= 5 blocs + 3 rep} & 1080 & \makecell[l]{neighbors= 15\\ dist\_power= 1\\ weight\_func= triangular } &\textcolor{black}{22477.03}	& \textcolor{black}{0.25} \\
+
+\addlinespace
+\midrule
+Arbre de décision & \small \makecell[l]{ cost\_complexity= [0.001, \\0.005, 0.01, 0.05, 0.1]\\ min\_n= [5, 10, 15, 20]\\ cv= 5 blocs + 3 rep} & 300 & \makecell[l]{cost\_\\complexity= 0.001\\ min\_n= 20} & \textcolor{violet}{21884.54}	& \textcolor{violet}{0.74}\\ 
+\addlinespace
+\midrule
+Forêt aléatoire  & \small \makecell[l]{mtry= [10, 20, 35, 55]\\ trees= [100, 300, 500] \\ min\_n= [5, 10, 20, 50]\\ cv= 5 blocs + 3 rep} & 720 & \makecell[l]{mtry= 55\\ trees= 100 \\ min\_n= 10} &\textcolor{black}{27325.96}	& \textcolor{black}{0.40} \\
+\addlinespace
+\midrule
+Réseau de neurone & \small \makecell[l]{ \makecell[l]{units = [50, 50, 1] \\hidden\_layer = 2 \\ activation = ["relu",\\ "relu", "linear"]
+\\ input\_shape= 118 \\ coef L2 = 0.01\\ dropout = 0.3\\ batch\_size = 33\\ epoch\_max = 200\\ validation = 0.2\\ loss= mse\\ learning\_rate = 0.001\\optimiseur = Adam}} & 5650 & \makecell[l]{units = [50, 50, 1] \\hidden\_layer = 2 \\ activation = ["relu",\\ "relu", "linear"]
+\\ input\_shape= 118 \\ coef L2 = 0.01\\ dropout = 0.3\\ batch\_size = 33\\ epoch\_max = 200\\ validation = 0.2\\ loss= mse\\ learning\_rate = 0.001\\optimiseur = Adam} &\textcolor{black}{25086.46}	& \textcolor{red}{0.008}\\ 
+\addlinespace
+\midrule
+L2 Boosting  & \small \makecell[l]{n.trees= [1000, 2000, 5000]\\ interaction.depth= [1,3,5]\\ shrinkage= [0.1, 0.05, 0.01]\\ n.minobsinnode= [5, 10]\\ cv= 5 blocs + 3 rep} & 810 & \small \makecell[l]{n.trees= 1000\\ interaction.depth= 5\\ shrinkage= 0.01\\ n.minobsinnode= 5} &\textcolor{black}{23357.34}	& \textcolor{black}{0.14}\\ 
+\addlinespace
+\midrule
+Xgboost &  \small \makecell[l]{stop\_iter = 20\\ mtry= [15, 20, 35, 55]\\ trees= [50, 100, 200, 500, 1000]\\min\_n= [2, 5, 10, 20]\\learn\_rate= [0.01, 0.05, 0.1, 0.3]\\ cv= 5 blocs + 3 rep}  & 4800 & \small \makecell[l]{mtry= 55\\ trees= 50\\min\_n= 5\\learn\_rate= 0.05} &\textcolor{orange}{22371.06}	& \textcolor{orange}{0.52}\\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+\item D'après le tableau~\ref{tab: ajust_models_res} récapitulatif des performances des algorithmes de machine learning ajustés testés, nous constatons qu'une fois de plus, c'est l'algorithme d'arbre de décision qui présente les meilleures performances parmi les modèles proposés avec une RMSE de 21~884~540~€ et un $R^2$ de 0{,}74. Au vu de la valeur de la RMSE, on peut dire que les prédictions du modèle présentent en moyenne une marge d'erreur de 21~884~000~€ et que le modèle explique 74~\% de la variance totale des montants de financement EDMD.\\
+
+\item Les hyperparamètres de ce meilleur modèle ont été obtenus au cours de la validation croisée et sont : \texttt{cost\_complexity = 0.001} et \texttt{min\_n = 20}. Ce genre de paramètres permet d'avoir un arbre de décision modérément élagué où chaque division doit apporter un gain d'information significatif (supérieur à 0.001) et où chaque nœud terminal contient au minimum 20 observations pour assurer la robustesse des prédictions.\\
+
+\item Par ailleurs, à titre comparatif par rapport au meilleur modèle obtenu parmi les modèles de base évalués précédemment (voir tableau~\ref{tab: simple_models_res}), nous obtenons une différence de RMSE de 60~000~€, soit 0{,}27~\% de la RMSE obtenue pour le modèle ajusté, et une amélioration du pourcentage d'explicabilité de la variance des financements de 0{,}10~\%. L'importance des variables issues de l'arbre de décision ajusté obtenu est exactement la même que celle obtenue pour l'arbre de décision de base, ainsi son interprétation reste inchangée.\\
+
+
+\item D'après ce même tableau récapitulatif, le modèle XGBoost (non linéaire) arrive en deuxième position en termes de performance parmi les 7 modèles évalués, avec une RMSE de 22~371~060~€, soit 486~520~€ (2{,}22~\%) de plus par rapport au meilleur modèle. Ce modèle présente également un $R^2$ de 0{,}52, expliquant ainsi 52~\% de la variance totale des montants de financement EDMD, ce qui reste inférieur de 22 points de pourcentage à la capacité explicative du meilleur modèle.\\
+
+\item Il est important de remarquer que le modèle de réseau de neurones est un algorithme difficile à calibrer et que, dans notre cas, il se classe en 5\textsuperscript{e} position en termes de performance parmi les modèles utilisés. Son problème majeur réside dans sa très faible capacité explicative de la variance totale des financements pour le fonds EDMD, avec un $R^2$ de seulement 0{,}008 (soit 0{,}8~\%). Cette performance décevante pourrait s'expliquer par la taille limitée de notre jeu de données d'apprentissage ($n = 352$), insuffisante pour permettre au modèle de capturer efficacement les relations sous-jacentes entre les variables. En effet, les réseaux de neurones nécessitent généralement un volume de données conséquent pour apprendre efficacement et éviter aussi bien le sur-apprentissage que le sous-apprentissage.\\
+
+
+\item Concernant les autres modèles ajustés issus des algorithmes évalués, non seulement nous observons, au vu de leur RMSE, une mauvaise prévision par rapport au meilleur modèle, mais également leur capacité à expliquer la variance totale des montants de financement EDMD est en dessous du seuil de 0,5\%, ce qui signifie que ces modèles sont pratiquement inutiles pour la prédiction des montants de financement EDMD. Un $R^2$ aussi faible indique que les prédictions ne sont pas significativement meilleures qu'une estimation basée sur la moyenne des données historiques, remettant en question leur applicabilité dans un contexte opérationnel de gestion des financements. Il convient également de noter qu'une meilleure calibration de ces algorithmes de machine learning pourrait potentiellement nous donner de meilleurs résultats.\\
+
+\item Rappel de quelques hyperparamètres peu intuitifs :
+\begin{itemize}
+    \item \texttt{hidden\_layer} : nombre et taille des couches cachées d'un réseau de neurones.
+    \item \texttt{activation} : fonction qui transforme la sortie d'un neurone (ReLU, sigmoid, etc.).
+    \item \texttt{input\_shape} : dimension des données en entrée du modèle.
+    \item \texttt{coef L2} : pénalisation appliquée aux poids pour éviter le surapprentissage.
+    \item \texttt{dropout} : proportion de neurones ignorés pendant l'entraînement pour régulariser.
+    \item \texttt{batch\_size} : nombre d'exemples traités avant une mise à jour des poids.
+    \item \texttt{epoch\_max} : nombre maximal de passes sur l'ensemble des données d'entraînement.
+    \item \texttt{loss} : fonction qui mesure l'erreur entre prédiction et vérité.
+    \item \texttt{learning\_rate} : vitesse d'ajustement des poids à chaque itération.
+    \item \texttt{shrinkage} : facteur de réduction des mises à jour dans le boosting.
+    \item \texttt{interaction.depth} : profondeur maximale des arbres dans un modèle de boosting.
+    \item \texttt{n.minobsinnode} : nombre minimal d'observations dans un nœud d'arbre.
+    \item \texttt{trees} : nombre total d'arbres à construire dans un ensemble (forêt/boosting).
+    \item \texttt{min\_n} : nombre minimal d'observations par feuille (contrôle la taille minimale d'un nœud terminal).\\
+\end{itemize}
+
+
+\subsubsection{Prédictions du meilleur modèle sur les nouvelles observations}
+
+\item Ayant obtenu les meilleurs paramètres ainsi que la meilleure famille d'algorithmes de machine learning pour la prédiction des financements (cp) EDMD, j'ai regroupé les données d'entraînement et de test en un ensemble unique. Cette approche permet au nouveau modèle de disposer de plus d'informations pour apprendre les patterns(les structures cachées). J'ai ensuite créé un nouveau modèle d'arbre de décision en utilisant les meilleurs hyperparamètres sélectionnés lors de la validation croisée.\\
+ 
+\item Ce modèle a été entraîné sur l'ensemble des données regroupées, qui constituent la totalité des communes ayant reçu un financement EDMD en 2024 (voir figure 2). La taille finale des données d'entraînement est de n=528 observations et p=112 variables explicatives. Les prédictions des nouveaux montants Cp pour le fonds EDMD des communes n'ayant pas reçu de financement sont répertoriées dans la colonne cp\_EDMD\_pred de la base de données de l'étude, accessible via \href{https://docs.google.com/spreadsheets/d/1Fksb9YR63qQmPvSydT6bBlPvvvYBmfPG9S9OJa1uy3Y/edit?usp=sharing}{ce Google Sheet}.\\
+
+\item Afin de proposer une restitution plus compréhensible de la répartition des financements prédits, nous avons élaboré des représentations cartographiques. Une première cartographie présente la distribution des montants de financement EDMD prédits uniquement(voir \ref{fig: carto_pred_EDMD}). \\
+
+\item L'analyse de cette cartographie révèle que la majorité des financements prédits s'élèvent à 1~092~036,5~€. Cependant, trois communes se distinguent par des prédictions nettement supérieures à ce montant : Bannalec (9~963~817,4~€), Plourhan (9~963~817,4~€) et Châteaugiron (92~615~049,3~€). Cette dernière présente la prédiction de financement la plus élevée de l'ensemble des communes étudiées.\\
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.8\linewidth]{carto_pred_EDMD.png}
+    \caption{Cartographie de répartition des montants EDMD prédits }
+    \label{fig: carto_pred_EDMD}
+\end{figure}
+
+
+
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\linewidth]{EDMD_initial_and_pred.png}
+    \caption{Cartographie de répartition des montants EDMD initiaux et prédits}
+    \label{fig: EDMD_initial_and_pred}
+\end{figure}
+
+\item Une deuxième cartographie illustre la répartition des financements EDMD en Bretagne pour l'ensemble des communes bénéficiaires. Enfin, une troisième cartographie combine tous les montants de financement, incluant à la fois les financements EDMD initiaux et ceux prédits par le modèle. Afin de proposer un visuel comparatif, nous avons réuni ces deux dernières cartographies dans la même figure(voir \ref{fig: EDMD_initial_and_pred}). \\
+
+
+\item La structure spatiale de répartition de ces communes dont les financements ont été prédits ne se distingue pas clairement, en raison de l'uniformité majoritaire de la distribution des montants estimés. Néanmoins, nous pouvons constater que parmi les trois communes dont nous avons des montants payé EDMD estimé  différents de cette distribution uniforme, deux d'entre elles se situent à proximité de communes bénéficiant de financements similaires à leur prédiction. Ce phénomène avait déjà été expliqué en partie dans le chapitre relatif à l'autocorrélation spatiale locale des financements.\\
+
+
+\item \textbf{Comparaison cartographique des prédiction du meilleur modèle et du modèle spatial}
 
 
 
@@ -1025,7 +1271,7 @@ R^2 = \frac{\text{SCE}}{\text{SCT}} = 1 - \frac{\text{SCR}}{\text{SCT}}.
 \newpage
 \section{Autres missions}
 
-\subsection{Data Etat}
+\subsection{Data État}
 
 \item \textbf{Présentation du projet:}
 
@@ -1043,7 +1289,7 @@ R^2 = \frac{\text{SCE}}{\text{SCT}} = 1 - \frac{\text{SCR}}{\text{SCT}}.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.6\linewidth]{ecosystem_data_etat.png}
+    \includegraphics[width=0.65\linewidth]{ecosystem_data_etat.png}
     \caption{Ecosystème Data Etat}
     \label{fig: ecosystem_data_etat}
 \end{figure}
@@ -1135,7 +1381,7 @@ Les principaux utilisateurs de ce tableau de bord sont les agents en charge du p
 
 \appendix
 \chapter*{Annexe 1 : Tableau des thématiques de financement}
-\addcontentsline{toc}{chapter}{A Annexe 1 : Tableau des thématiques de financement}
+\addcontentsline{toc}{chapter}{Annexe 1 : Tableau des thématiques de financement}
 
 \begin{table}[htbp]
 \centering
@@ -1208,7 +1454,7 @@ Autres activités de services & AAS\\
 
 
 \chapter*{Annexe 2 : Tableau des résumés statistiques des données}
-\addcontentsline{toc}{chapter}{B Annexe 1 : Tableau des résumés statistiques des données}
+\addcontentsline{toc}{chapter}{Annexe 2 : Tableau des résumés statistiques des données}
 \label{sec: resume_stat_ax}
 
 \begin{table}[htbp]
@@ -1258,22 +1504,6 @@ nbr\_inst\_sol\_photovoltaique        &    2.01   &      2.59     &       0     
 fossile\_PE\_kw                      &   708.87  &    5,900.27   &       0         &   96,499    \\ 
 fossile\_PT\_kw                      &   700.27  &    6,471.84   &       0         &  108,561    \\ 
 nbr\_inst\_fossile                   &    0.14   &      0.72     &       0         &     11      \\ 
-incinerateur\_PE\_kw                 &   23.84   &     342.74    &       0         &   7,800     \\ 
-incinerateur\_PT\_kw                 &   133.44  &    1,993.19   &       0         &   49,500    \\ 
-nbr\_incinerateur                   &    0.01   &      0.09     &       0         &     1       \\ 
-chaufferie\_bois\_PE\_kw              &   11.98   &     306.99    &       0         &   9,400     \\ 
-chaufferie\_bois\_PT\_kw              &   349.68  &    2,136.52   &       0         &   45,000    \\ 
-nbr\_chaufferie\_bois                &    0.49   &      1.07     &       0         &     18      \\ 
-methaniseur\_PE\_kw                  &   32.02   &     143.00    &       0         &   1,600     \\ 
-methaniseur\_PT\_kw                  &   42.38   &     182.56    &       0         &   3,300     \\ 
-nbr\_unite\_methaniseur              &    0.25   &      0.59     &       0         &     6       \\ 
-taux\_conformite\_bact               &    0.99   &      0.05     &     0.45        &    1.00     \\ 
-taux\_conformite\_chim               &    0.95   &      0.12     &     0.00        &    1.00      \\
-MC\_industrie\_mwh                   &  7,876.69 &    90,327.94  &     0.00        & 3,075,551.00 \\ 
-MC\_agricole\_mwh                    &   456.06  &    2,432.21   &     0.00        & 41,427.01   \\ 
-MC\_tertiaire\_mwh                   &  2,225.90 &    7,252.47   &     0.00        & 137,098.20  \\ 
-MC\_residentiel\_mwh                 &    7.61   &      3.84     &     2.27        &   18.11     \\ 
-MC\_totale\_mwh                      & 30,956.99 &   126,668.50  &    276.12       & 3,173,785.00 \\ 
 
 \hline
 
@@ -1291,6 +1521,22 @@ Statistic                          &  Mean     &  St. Dev.     &    Min         
 
 \hline
 \hline
+incinerateur\_PE\_kw                 &   23.84   &     342.74    &       0         &   7,800     \\ 
+incinerateur\_PT\_kw                 &   133.44  &    1,993.19   &       0         &   49,500    \\ 
+nbr\_incinerateur                   &    0.01   &      0.09     &       0         &     1       \\ 
+chaufferie\_bois\_PE\_kw              &   11.98   &     306.99    &       0         &   9,400     \\ 
+chaufferie\_bois\_PT\_kw              &   349.68  &    2,136.52   &       0         &   45,000    \\ 
+nbr\_chaufferie\_bois                &    0.49   &      1.07     &       0         &     18      \\ 
+methaniseur\_PE\_kw                  &   32.02   &     143.00    &       0         &   1,600     \\ 
+methaniseur\_PT\_kw                  &   42.38   &     182.56    &       0         &   3,300     \\ 
+nbr\_unite\_methaniseur              &    0.25   &      0.59     &       0         &     6       \\ 
+taux\_conformite\_bact               &    0.99   &      0.05     &     0.45        &    1.00     \\ 
+taux\_conformite\_chim               &    0.95   &      0.12     &     0.00        &    1.00      \\
+MC\_industrie\_mwh                   &  7,876.69 &    90,327.94  &     0.00        & 3,075,551.00 \\ 
+MC\_agricole\_mwh                    &   456.06  &    2,432.21   &     0.00        & 41,427.01   \\ 
+MC\_tertiaire\_mwh                   &  2,225.90 &    7,252.47   &     0.00        & 137,098.20  \\ 
+MC\_residentiel\_mwh                 &    7.61   &      3.84     &     2.27        &   18.11     \\ 
+MC\_totale\_mwh                      & 30,956.99 &   126,668.50  &    276.12       & 3,173,785.00 \\ 
 cp\_AF                              &    2.17   &      75.40    &       0         &   2,614     \\ 
 ae\_AF                              &    2.17   &      75.40    &       0         &   2,614     \\ 
 cp\_AGTE                            & 378,903.00 &  5,227,952.00 &      0.00      & 167,632,540.00 \\
@@ -1299,7 +1545,6 @@ cp\_AAFAR                           &2,021,284.00 & 17,769,311.00 &     0.00    
 ae\_AAFAR                           &1,973,566.00 & 14,587,120.00 &  -460,000.00  & 469,233,660.00 \\ 
 cp\_APD                             &  1,784.94 &    29,684.78  &       0         &  709,680    \\ 
 ae\_APD                             &  1,784.94 &    29,684.78  &       0         &  709,680    \\ 
-
 cp\_culture                         & 820,953.20 &  9,729,268.00 &      0.00      & 315,855,730.00 \\
 ae\_culture                         &1,060,082.00 & 10,605,368.00 &  -959,743.00  & 331,522,084.00 \\ 
 cp\_economie                        &  3,143.83 &    97,071.37  &     0.00        & 3,341,161.00 \\ 
@@ -1309,13 +1554,33 @@ ae\_DAG                             & 12,157.06 &   230,975.50  &       0       
 cp\_ES                              &4,505,728.00 & 33,934,044.00 &     0.00      & 1,033,438,705.00 \\
 ae\_ES                              &4,507,909.00 & 34,020,580.00 & -6,094,503.00 & 1,036,211,596.00 \\
 cp\_GFP                             & 297,304.10 &  7,367,880.00 &      0.00      & 254,894,113.00 \\
-ae\_GFP                             & 280,320.20 &  6,845,515.00 &   -186,916.60  & 236,432,145.00\\ 
+ae\_GFP                             & 280,320.20 &  6,845,515.00 &   -186,916.60  & 236,432,145.00 \\
 cp\_IAI                             & 293,944.40 &  5,358,235.00 &      0.00      & 164,941,759.00\\ 
 ae\_IAI                             & 241,235.80 &  4,518,190.00 &  -2,574,081.00 & 140,151,139.00\\ 
 cp\_justice                         & 709,686.00 &  5,914,451.00 &      0.00      & 130,334,136.00 \\ 
 ae\_justice                         & 676,538.30 &  5,847,122.00 &   -158,100.00  & 141,027,391.00 \\
 cp\_MLIC                            &  7,684.16 &   197,962.10  &       0         & 6,790,800   \\  
 ae\_MLIC                            &  7,684.16 &   197,962.10  &       0         & 6,790,800   \\ 
+
+\hline
+
+
+\end{tabular}
+\caption{Résumé statistique partie 2}
+\label{tab: resume_stat_2}
+\end{table}
+
+
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+Statistic                          &  Mean     &  St. Dev.     &    Min          &  Max      \\ 
+
+\hline
+\hline
+
 cp\_PR                              & 75,483.83 &   816,805.30  &     0.00       & 23,834,540.00 \\ 
 ae\_PR                              & 27,000.68 &   354,160.00  & -5,000,000.00   & 5,474,087.00 \\ 
 cp\_RES                             & 216,583.00 &  4,199,199.00 &      0.00      & 130,908,793.00\\ 
@@ -1328,6 +1593,7 @@ cp\_securites                       & 579,424.30 &  7,433,626.00 &      0.00    
 ae\_securites                       & 893,374.40 &  18,204,070.00 & -1,017,450.00 & 626,365,279.00\\ 
 cp\_SIEC                            &2,710,581.00 & 36,976,127.00 &     0.00      & 728,050,367.00\\ 
 ae\_SIEC                            &2,703,829.00 & 36,842,526.00 &     0.00      & 730,138,367.00 \\
+
 cp\_SJVA                            & 33,851.01 &   285,680.90  &     0.00        & 8,537,224.00  \\
 ae\_SJVA                            & 33,971.18 &   285,908.10  &     0.00        & 8,536,743.00 \\ 
 cp\_EDMD                            &4,104,124.00 & 32,867,311.00 &     0.00      & 753,812,450.00\\ 
@@ -1350,15 +1616,16 @@ autres\_benef\_association           &   10.23   &      85.33    &       0      
 
 \hline
 
+
 \end{tabular}
-\caption{Résumé statistique partie 2}
-\label{tab: resume_stat_2}
+\caption{Résumé statistique partie 3}
+\label{tab: resume_stat_3}
 \end{table}
 
 
 
-\chapter*{Annexe 3 : Autres cartographies pour statistique spatiale}
-\addcontentsline{toc}{chapter}{C Annexe 3 : Autres cartographies pour statistique spatiale}
+\chapter*{Annexe 3 : Autres cartographies pour statistiques spatiales}
+\addcontentsline{toc}{chapter}{Annexe 3 : Autres cartographies pour statistique spatiale}
 \label{sec: stat_spatial_ax}
 
 \begin{figure}[htbp]
@@ -1370,10 +1637,12 @@ autres\_benef\_association           &   10.23   &      85.33    &       0      
 
 
 \chapter*{Annexe 4 : Coin Machine Learning}
-\addcontentsline{toc}{chapter}{C Annexe 4 : Coin Machine Learning}
+\addcontentsline{toc}{chapter}{Annexe 4 : Coin Machine Learning}
 \label{sec: ML_resume_ax}
 
-\item Initialement, l'objectif est toujours le même : on se base sur un ensemble d'observations $\mathcal{O} = \{(x_1, y_1), \dots, (x_n, y_n)\}$, et on cherche à expliquer une variable $Y$ par $p$ variables explicatives $X_1, \dots, X_p$.
+
+
+\item Initialement, l'objectif est toujours le même : on se base sur un ensemble d'observations $\mathcal{O} = \{(x_1, y_1), \dots, (x_n, y_n)\}$, et on cherche à expliquer une variable $Y$ par $p$ variables explicatives $X_1, \dots, X_p$.\\
 
 \item \textbf{Régression linéaire:}
 
@@ -1416,9 +1685,18 @@ $$\hat{\mathbf{Y}}= \mathbb{X}\hat{\beta}= \mathbb{X}(\mathbb{X}'\mathbb{X})^{-1
     $$\hat{\epsilon}_{n+1}^{(p)} = Y_{n+1} - \hat{Y}_{n+1}^{(p)}$$
 \end{itemize}
 
+\newpage
+\item \textcolor{violet}{ Résultats du modèle dans notre étude  :}
 
-\newpage 
-\item \textbf{2- Arbre de décision :}
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\linewidth]{significativite_var_lm_multiple.png}
+    \caption{Importance des variables dans le modèle final de régression linéaire multiple}
+    \label{fig: significativite_var_lm_multiple}
+\end{figure}
+
+
+\item \textbf{2- Arbre de décision}
 
 \item Les arbres de décision sont des algorithmes de prédiction non linéaires utilisés pour traiter des problèmes de régression et de classification. La logique de cet algorithme s'exprime par le partitionnement récursif des données en sous-ensembles basé sur des règles/critères simples (indice de Gini, entropie ou variance) appliqués aux valeurs des variables explicatives pour obtenir des segments homogènes selon une variable cible, où la variance est minimisée.
 
@@ -1480,9 +1758,9 @@ On cherche le couple $(j^*, s^*)$ qui maximise ce gain d'impureté.
 
 \item Soit $\alpha \geq 0$, le critère coût-complexité $C_\alpha(T)$ tient compte l'adéquation d'un arbre et sa complexité est défini par : $$C_\alpha(T) = \sum_{m=1}^{|T|} N_m R_m(T) + \alpha|T|.$$
 
-\item On cherche donc un arbre $T_\alpha$ qui minimise $C_\alpha(T)$ pour une valeur de $\alpha$ bien choisie.
+\item On cherche donc un arbre $T_\alpha$ qui minimise $C_\alpha(T)$ pour une valeur de $\alpha$ bien choisie.\\
 
-\item \textbf{ Alogorithme de l'arbre de décision avec réechantillonnage des données:}
+\item \textcolor{blue}{ Algorithme de l'arbre de décision:}
 
 \begin{enumerate}
     \item Calculer $\beta_0 = 0$, $\beta_1 = \sqrt{\alpha_1 \alpha_2}$, $\ldots$, $\beta_{M-1} = \sqrt{\alpha_{M-1} \alpha_M}$, $\beta_M = +\infty$.
@@ -1502,8 +1780,17 @@ On cherche le couple $(j^*, s^*)$ qui maximise ce gain d'impureté.
     \]
 \end{enumerate}
 
-\textbf{Retourner :} une valeur $\alpha_m$ telle que $\widehat{R}(\beta_m)$ est minimum.\\
+\textbf{Retourner :} une valeur $\alpha_m$ telle que $\widehat{R}(\beta_m)$ est minimum.
 
+\newpage
+\item \textcolor{violet}{ Résultats du modèle dans notre étude  :}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\linewidth]{resume_VC_tree.png}
+    \caption{Résumé VC pour les modèles d'arbre de décision}
+    \label{fig: resume_VC_tree}
+\end{figure}
 
 \item \textbf{3- Les forêts aléatoires}
 
@@ -1511,7 +1798,7 @@ On cherche le couple $(j^*, s^*)$ qui maximise ce gain d'impureté.
 
 \item Le Bootstrap Aggregating est une méthode qui consiste à construire plusieurs estimateurs sur des échantillons bootstrap (tirage de taille $n$ avec remise) et ensuite effectuer des agrégations.\\
 
-\item \textbf{Algorithme bagging}
+\item \textcolor{blue}{Algorithme bagging}
 
 \item \textbf{Entrées :}
 \begin{itemize}
@@ -1529,12 +1816,13 @@ On cherche le couple $(j^*, s^*)$ qui maximise ce gain d'impureté.
 
 \item Un sous-ensemble aléatoire des variables est utilisé au cours de la phase de division (segmentation). Dans le cas de la régression, à l'issue du processus de segmentation, une agrégation (moyenne) des prédictions des différents arbres est effectuée pour trouver les prédictions finales. Dans le cas de la classification, on considère plutôt la classe la plus prédite (majoritaire).\\
 
+
 \item \textbf{Fonction de prévision}
 
 \item Soit $T(x, \theta_b, \mathcal{D}_n)$ un arbre appartenant à $\mathbb{R}$. On cherche à prédire une unique valeur, en regression la fonction de prédiction s'exprime par :
 \[m_n(x) = \frac{1}{B}\sum_{b=1}^{B}T(x, \theta_b, \mathcal{D}_n)\]
 
-\item \textbf{Algorithme des forêts aléatoires:}
+\item \textcolor{blue}{Algorithme des forêts aléatoires:}
 
 \item \textbf{Entrées :}
 \begin{itemize}
@@ -1562,11 +1850,188 @@ Pour $b$ entre $1$ et $B$ :
 \textbf{Retourner :} 
 \[f_n(x) = \frac{1}{B}\sum_{b=1}^B T(x, \theta_b, \mathcal{D}_n)\]
 
+\item \textcolor{violet}{ Résultats du modèle dans notre étude  :}
 
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.57\linewidth]{RF_adj_IV.png}
+    \caption{Importance des variables de la forêt aléatoire}
+    \label{fig: RF_adj_IV}
+\end{figure}
+
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.75\linewidth]{resume_VC_random_forest.png}
+    \caption{Résumé VC pour les modèles de forêt aléatoire}
+    \label{fig: resume_VC_random_forest}
+\end{figure}
+
+
+\item \textbf{4- Les K plus proches voisins}
+
+\item Est un algorithme fondé sur une approche non paramétrique basée sur les moyennes locales.
+
+\item Soit $k \leq n$,  pour un point de prédiction $x$, l'estimateur des $k$ plus proches voisins de $m^*(x)$ est défini par: $$m_{n,k}(x) = \frac{1}{k} \sum_{i \in I_{kppv}(x)} y_i$$
+
+\noindent avec $$I_{kppv}(x) = \{i \leq n : \|x - x_i\| \leq \|x - x_{(k)}\|\}$$
+
+\noindent et $\|x - x_{(k)}\|$ la $k^e$ plus petite valeur parmi $\{\|x - x_1\|, \ldots, \|x - x_n\|\}$.
+
+\item L'estimateur des $k$ plus proches voisins précédemment proposé est un estimateur uniforme (standard), offrant une pondération uniforme des voisins. Il existe également un estimateur pondéré qui s'écrit :
+$$\hat{m}_{n,k}(x) = \frac{\sum_{i \in I_k(x)} w_i(x) y_i}{\sum_{i \in I_k(x)} w_i(x)}$$
+avec $w_i(x)$ la fonction de pondération. \\
+
+Nous avons entre autres comme fonctions de pondération :
+\begin{itemize}
+    \item L'inverse de la distance : $w_i(x) = \frac{1}{\|x - x_i\| + \epsilon}$
+    \item La gaussienne : $w_i(x) = \exp\left(-\frac{\|x - x_i\|^2}{2\sigma^2}\right)$
+    \item La triangulaire : $w_i(x) = \max(0, 1 - \|x - x_i\|/h)$
+\end{itemize}
+
+\item Ces pondérations permettent par exemple de donner plus d'influence aux voisins les plus proches, de réduire les biais aux frontières, d'avoir des prédictions plus lisses et d'obtenir de meilleures performances quand les données ne sont pas uniformément distribuées.\\
+
+\item Le choix de la valeur de $k$ a un impact important sur la variance et le biais. Un $k$ trop petit capture bien les variations locales et engendre un faible biais cependant il peut entraîner du sur-apprentissage, une forte variance et  une sensibilité  au bruit. Tandis qu'un $k$ grand (proche de $n$) engendre une faible variance et rend l'algorithme robuste au bruit, mais entraîne néanmoins un biais élevé et peut mener celui-ci à tendre vers du sous-apprentissage en perdant la structure locale des données.\\
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.80\linewidth]{resume_VC_KNN.png}
+    \caption{Résumé VC pour les modèles KNN}
+    \label{fig: resume_VC_KNN}
+\end{figure}
+
+
+\item \textbf{5- Gradient Boosting}
+
+\item Le concept général du boosting consiste à combiner séquentiellement des 
+apprenants faibles (weak learners) issus de la même famille afin de réduire 
+principalement le biais et créer un algorithme fort (strong learner). En se basant 
+sur ce concept, le gradient boosting construit une somme pondérée de fonctions de 
+prédiction issues de la même famille(ici des combinaisons d’arbres de décision) en utilisant une approche inspirée de la 
+méthode de descente de gradient.\\
+
+\item Soit $f : \mathcal{X} \to \mathbb{R}$ une fonction de prédiction, et notons 
+$\mathbf{f} = (f(x_1), \ldots, f(x_n)) \in \mathbb{R}^n$ le vecteur de ses 
+évaluations sur l'échantillon d'apprentissage. En pratique, on travaille avec le vecteur $\mathbf{f} \in \mathbb{R}^n$  et on définit : $$\widetilde{R}_n(\mathbf{f}) = \frac{1}{n} \sum_{i=1}^{n} \ell(y_i,  f(x_i))$$
+
+\item L'algorithme génère une suite $(\mathbf{f}_b)_{b \geq 0}$ de vecteurs de 
+$\mathbb{R}^n$ qui convergent vers un minimum (local) du risque empirique selon la récurrence :
+$$\mathbf{f}_b = \mathbf{f}_{b-1} - \rho_b \nabla \widetilde{R}_n(\mathbf{f}_{b-1})$$
+où $\rho_b > 0$ est le pas de descente à l'itération $b$, et $\nabla \widetilde{R}_n(\mathbf{f}_{b-1})$ 
+désigne le vecteur gradient de $\widetilde{R}_n$ évalué en $\mathbf{f}_{b-1}$.\\
+
+\item Ce vecteur gradient appartient à $\mathbb{R}^n$ et sa $i$-ème coordonnée vaut :
+$$ \frac{\partial \widetilde{R}_n(\mathbf{f})}{\partial f(x_i)}(\mathbf{f}_{b-1}) = 
+\frac{\partial \ell(y_i, \mathbf{f}(x_i))}{\partial f(x_i)}(\mathbf{f}_{b-1}(x_i))$$
+
+
+\item \textcolor{blue}{Algorithme de gradient boosting:}
+
+\item Entrées:
+
+\begin{itemize}
+    \item $\ell$ : fonction de perte
+    \item $B$ : nombre d'itérations
+    \item $J$ : nombre de feuilles des arbres 
+    \item $\lambda$ : paramètre de rétrécissement\\
+\end{itemize}
+
+\item Initialisation : $f_0(x) = \arg\min_c \frac{1}{n} \sum_{i=1}^n \ell(y_i, c)$
+\item Pour $b = 1$ à $B$ :
+\begin{enumerate}[label=(\alph*)]
+    \item Calculer l'opposé du gradient $-\frac{\partial}{\partial f(x_i)} \ell(y_i, f(x_i))$ 
+    
+    \noindent et l'évaluer aux points $f_{b-1}(x_i)$ :
+    \begin{equation*}
+        u_i = -\frac{\partial \ell(y_i, f(x_i))}{\partial f(x_i)}\bigg|_{f(x_i) = f_{b-1}(x_i)}, \quad i = 1, \ldots, n.
+    \end{equation*}
+    
+    \item Ajuster un arbre de régression à $J$ feuilles sur $(x_1, u_1), \ldots, (x_n, u_n)$.
+    
+    \item Calculer les valeurs prédites dans chaque feuille
+    \begin{equation*}
+        \gamma_{jb} = \arg\min_\gamma \sum_{x_i \in \mathcal{N}_{jb}} \ell(y_i, f_{b-1}(x_i) + \gamma).
+    \end{equation*}
+    
+    \item Mise à jour : $f_b(x) = f_{b-1}(x) + \sum_{j=1}^J \gamma_{jb} \mathbf{1}_{x \in \mathcal{N}_{jb}}$.
+\end{enumerate}
+\item Retourner : l'algorithme $f_B(x) = f_B(x)$.
+
+
+
+
+\item Les algorithmes L2-boosting est un cas particulier du Gradient Boosting qui tirent sa spécificité du choix de la fonction de perte : ici la perte quadratique convexe et dérivable.
+
+\begin{itemize}
+\item $L_2$-boosting en régression:
+
+\noindent fonction de prévision optimale : $f^*(x) = \mathbf{E}[Y | X = x]$.  
+
+
+\noindent Avec cette perte, les $u_i$ sont donnés par $$u_i = -\frac{\partial \ell(y_i, f(x_i))}{\partial f(x_i)} |_{f_{t-1}(x_i)} = y_i - f_{t-1}(x_i),$$
+
+\noindent $f_b$ s'obtient donc en corrigeant $f_{b-1}$ avec une régression sur ses résidus.\\
+\end{itemize}
+\item \textcolor{violet}{ Résultats du modèle dans notre étude  :}
+
+
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.6\linewidth]{resume_VC_l2_boosting.png}
+    \caption{Résumé VC pour les modèles L2-boosting}
+    \label{fig: resume_VC_l2_boosting}
+\end{figure}
+
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.57\linewidth]{L2_boosting_IV.png}
+    \caption{Importance des variables L2- boosting}
+    \label{fig: L2_boosting_IV}
+\end{figure}
+
+
+\item \textbf{6- Xgboost:}
+
+
+\item \textcolor{violet}{ Résultats du modèle dans notre étude  :}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\linewidth]{xgboost_IV.png}
+    \caption{Importance des variables Xgboost}
+    \label{fig: xgboost_IV}
+\end{figure}
+
+
+
+\item \textbf{7- Réseau de neurone:}
+
+\item \textcolor{violet}{ Résultats du modèle dans notre étude  :}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.7\linewidth]{RN_courbes_train_valid.png}
+    \caption{Courbes de suivi des performances du modèle pendant l'entrainement }
+    \label{fig: RN_courbes_train_valid}
+\end{figure}
+
+
+
+
+
+\item \textbf{Rappel des différences entre algorithmes linéaires et non linéaires}: 
+
+\item Un modèle linéaire suppose que la relation entre les variables explicatives et la cible est une combinaison linéaire des entrées. Il est simple, interprétable, comporte peu de paramètres et présente un risque réduit de sur-apprentissage, mais ne capture pas naturellement les effets complexes ou les interactions non linéaires, qui doivent être introduits manuellement. Un modèle non linéaire, au contraire, peut modéliser des relations complexes, des seuils, des effets de saturation et des interactions implicites, offrant ainsi une grande flexibilité. Cependant, il présente un risque accru de sur-apprentissage, nécessite davantage de données pour bien généraliser et implique un réglage plus complexe avec de nombreux hyperparamètres. Les modèles linéaires requièrent moins de données et peu de tuning, tandis que les modèles non linéaires sont plus coûteux en ressources et en optimisation. Enfin, un modèle linéaire permet d’interpréter directement l’effet de chaque variable, alors qu’un modèle non linéaire est souvent perçu comme une “boîte noire” nécessitant des méthodes spécifiques d’explication. \\
+
+\newpage
 \begin{thebibliography}{Latex}
 \bibitem{lfi_site} \url{https://www.budget.gouv.fr/documentation/documents-budgetaires/exercice-2025}
 \bibitem{mice_data_imputation} \url{https://www.sciencedirect.com/science/article/pii/S0398762009003459}
 \bibitem{Autocorrélation Spatiale} \url{https://www.insee.fr/fr/statistiques/fichier/3635442/imet131-g-chapitre-3.pdf}\\
+\bibitem{K plus proches voisins } \url{https://www.ibm.com/fr-fr/think/topics/knn}\\
+
 \end{thebibliography}
 
 
@@ -1587,6 +2052,9 @@ Pour $b$ entre $1$ et $B$ :
 
 \item \textbf{Deep Learning:} 
 \item Cours de deep learning Master 2 - M. Romain TAVENARD\\
+
+\item \textbf{Régression Linéaire:} 
+\item Cours de Régression Linéaire simple et multiple Master 1 - M. Bruno Pelletier\\
 
 \chapter*{Glossaire}
 \addcontentsline{toc}{chapter}{Glossaire}
