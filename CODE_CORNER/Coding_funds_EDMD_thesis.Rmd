@@ -81,9 +81,7 @@ library(stars)
 ```{r}
 couleurs_1 <- c("#000066", "#000A7A", "#00148F", "#001EA3", "#0028B8", "#0032CC", "#003CE1", "#0046F5", 
                 "#0E50FF", "#1C5AFF", "#2A64FF", "#386EFF", "#4678FF", "#5482FF", "#628CFF", "#7096FF",
-                "#7EA0FF", "#8CAAFF", "#9AB4FF", "#A8BEFF", "#B6C8FF", "#C4D2FF", "#D2DCFF", "#E0E6FF",
-                "#EEF0FF", "#FCFAFF", "#FFFCF0", "#FFF8E0", "#FFF4D0", "#FFF0C0", "#FFECB0", "#FFE8A0",
-                "#FFE490", "#FFE080", "#FFDC70", "#FFD860", "#FFD450", "#FFD040", "#FFCC30", "#FFC820",
+                "#7EA0FF", "#8CAAFF", "#9AB4FF", "#A8BEFF", "#B6C8FF", "#C4D2FF", "#D2DCFF","#FFE490", "#FFE080", "#FFDC70", "#FFD860", "#FFD450", "#FFD040", "#FFCC30", "#FFC820",
                 "#FFC410", "#FFC000", "#FFBB00", "#FFB500", "#FFAF00", "#FFA900", "#FFA300", "#FF9D00",
                 "#FF9700", "#FF9100", "#FF8B00", "#FF8500", "#FF7F00", "#FF7900", "#FF7300", "#FF6D00",
                 "#FF6700", "#FF6100", "#FF5B00", "#FF5500", "#FF4F00", "#FF4900", "#FF4300", "#FF3D00",
@@ -94,7 +92,7 @@ couleurs_1 <- c("#000066", "#000A7A", "#00148F", "#001EA3", "#0028B8", "#0032CC"
 
 ```{r, warning= FALSE, message= FALSE}
 
-df_fonds_EDMD= read.csv("/home/emiliano/Documents/MASTER_MAS/ALTERNANCE/RAPPORT APPRENTISSAGE/Partie 2/FONDS EDMD/DATA_PRETREATMENT/fonds_vert.csv", sep = ",", dec= ".")
+df_fonds_EDMD= read.csv("/home/emiliano/Documents/MASTER_MAS/ALTERNANCE/RAPPORT APPRENTISSAGE/Partie 2/FONDS EDMD/DATA_PRETREATMENT/fonds_EDMD.csv", sep = ",", dec= ".")
 
 # Création de variable binaire relative à la variable cible
 df_fonds_EDMD$statut_finance_EDMD <- as.numeric(df_fonds_EDMD$cp_EDMD > 0)
@@ -446,7 +444,7 @@ ggplot(df_fonds_EDMD_for_carto) +
 # Tracer uniquement la Bretagne
 ggplot(df_fonds_EDMD_for_carto) + 
   geom_sf(aes(fill = cp_EDMD)) + 
-scale_fill_continuous(low= "lightgray",high= couleurs_1[20:50])+
+scale_fill_continuous(low= "white",high= couleurs_1)+
   theme_void() +  coord_sf()
 
 
@@ -460,6 +458,7 @@ df_fonds_EDMD %>% dplyr::select(statut_finance_EDMD) %>%
   summary()
 
 ```
+
 
 ```{r}
 planar_sf_breizh<-st_transform(df_fonds_EDMD_for_carto , 2154)
@@ -790,11 +789,12 @@ text(x = 0.08,
 ```
 
 
+
+
 # Machine learning 
 
-
 ```{r}
-df_fonds_EDMD= read.csv("/home/emiliano/Documents/MASTER_MAS/ALTERNANCE/RAPPORT APPRENTISSAGE/Partie 2/FONDS EDMD/DATA_PRETREATMENT/fonds_vert.csv", sep = ",", dec= ".")
+df_fonds_EDMD= read.csv("/home/emiliano/Documents/MASTER_MAS/ALTERNANCE/RAPPORT APPRENTISSAGE/Partie 2/FONDS EDMD/DATA_PRETREATMENT/fonds_EDMD.csv", sep = ",", dec= ".")
 
 # Création de variable binaire relative à la variable cible
 df_fonds_EDMD$statut_finance_ecolo_dmd <- as.numeric(df_fonds_EDMD$cp_EDMD > 0)
@@ -836,7 +836,65 @@ df_fonds_EDMD <- complete(imputed_data)
 
 ```
 
-# Machine learning 
+
+# Sélectionner des variables originales basées sur l'ACP
+
+
+```{r, warning= FALSE, message= FALSE}
+# Conversion des colonnes en numérique
+df_clean_EDMD_for_PCA <- df_fonds_EDMD %>%
+  mutate(across(c(gridens7, gare_tgv, ecoquartiers, climat, beneficiaire_prog, statut_finance_ecolo_dmd), as.numeric)) %>% dplyr:: select(-c("cp_EDMD", "code_com","code_dept","code_arr","lib_com","lib_arr","lib_dept"))
+```
+
+
+```{r, warning= FALSE, message= FALSE}
+
+set.seed(1234)
+
+
+# Analyse en composantes principales
+acp <- PCA(df_clean_EDMD_for_PCA, graph = FALSE)
+
+
+# Extraire les contributions
+var_contrib <- acp$var$contrib
+
+# Sélectionner les variables ayant une contribution >= seuil_contrib <- 100 / 112
+seuil_contrib <- 100 / 112
+var_cos2 <- acp$var$cos2
+vars_selected <- rownames(var_cos2)[apply(var_cos2, 1, function(x) any(x > 0.5))]
+
+# Visualiser uniquement ces variables
+
+print(fviz_pca_var(acp,
+             axes = c(1,2),
+             select.var = list(name = vars_selected),
+             col.var = "contrib",
+             gradient.cols = c("blue", "yellow", "red"),
+             repel = TRUE))
+
+
+```
+
+
+
+```{r, warning= FALSE, message= FALSE}
+
+# Réaliser l'ACP
+acp <- prcomp(df_clean_EDMD_for_PCA, scale. = TRUE)
+
+# Visualisation avec les individus colorés selon l'espèce
+fviz_pca_ind(acp,
+             axes= c(2, 4),
+             habillage = as.numeric(df_clean_EDMD_for_PCA$ae_EDMD >0),
+             addEllipses = TRUE,
+             label = "none",
+             palette = "jco",
+             title = "ACP des données à l'échelle des individus")
+
+```
+
+
 
 + Fonction de dummisation
 
@@ -845,7 +903,7 @@ prepare_and_dummify_data = function(data, del_dependance) {
   
   combos <- findLinearCombos(data)
   
-  # Supprimer les colonnes redondantes (s'il y en a)
+  # Supprimer les colonnes redondantes
   if (del_dependance == TRUE & !is.null(combos$remove)) {
     data_EDMD_clean <- data[,-combos$remove]
     message("Colonnes supprimées pour dépendance linéaire : ",
@@ -854,29 +912,30 @@ prepare_and_dummify_data = function(data, del_dependance) {
     data_EDMD_clean <- data
   }
   
-  
-  # Préparation des données avec dplyr
+  # Préparation des données
   data_prepared <- data_EDMD_clean %>%
     mutate(across(where(is.factor), as.character)) %>%
     {
-      # Récupération des variables non-factor pour les conserver
       numeric_vars <- dplyr::select(., where(is.numeric))
-      factor_vars <-
-        dplyr::select(., where(function(x)
-          is.character(x) || is.factor(x)))
+      factor_vars  <- dplyr::select(., where(function(x) is.character(x) || is.factor(x)))
       
-      # Création des dummies
-      dummy_vars <- factor_vars %>%
-        fastDummies::dummy_cols(remove_first_dummy = TRUE,
-                                remove_selected_columns = TRUE)
-      
-      # Combinaison des variables numériques et dummy
-      bind_cols(numeric_vars, dummy_vars) # on obtient 11 colonnes issues de la dummisation 
+      if (ncol(factor_vars) > 0) {
+        dummy_vars <- fastDummies::dummy_cols(
+          factor_vars,
+          remove_first_dummy = TRUE,
+          remove_selected_columns = TRUE
+        )
+        bind_cols(numeric_vars, dummy_vars)
+      } else {
+        # S’il n’y a pas de variables catégorielles, on garde juste les numériques
+        numeric_vars
+      }
     } %>%
-    relocate(cp_EDMD, .after = last_col() # Déplacement de la variable cible en dernière position
-             )
-             return(data_prepared) # 101 colonnes après nettoyage de dépendance linéaire + 11 colonnes dummies = 112
-  }
+    relocate(cp_EDMD, .after = last_col()) # replacer la cible à la fin
+  
+  return(data_prepared)
+}
+
 ```
 
 ```{r}
@@ -911,6 +970,9 @@ df_fonds_EDMD= df_fonds_EDMD %>%
   mutate(across(starts_with(c("ae_", "cp_")), ~ round(.x, 1))) %>%
   mutate(across(starts_with(c("ae_", "cp_")), ~ .x / 1000))
 
+#Décommentez ceci pour inclure la ACP dans les donnée 
+# df_fonds_EDMD= df_fonds_EDMD %>%
+#   dplyr::select(c(data.frame(vars_selected)$vars_selected, cp_EDMD,statut_finance_ecolo_dmd, code_com ))
 
 df_fonds_EDMD_Finance= df_fonds_EDMD  %>% filter(statut_finance_ecolo_dmd == 1) %>% dplyr:: select(-c(statut_finance_ecolo_dmd, code_com))
 
@@ -1020,7 +1082,7 @@ Xtest_mat_scaled <- scale(Xtest_mat,
 
 # Modèles de bases(fondamental)
 
-## Regression linéaire simple
+## Regression linéaire simple (commenter ceci pour la partie réduction de dimension car le taux de subvention ne fait pas partie des variables sélectionnées)
 
 ```{r}
 
@@ -1173,7 +1235,9 @@ prev_bases_models[3,3]= metrics_knn$.estimate[2]
 set.seed(1234)
 # Construction du modèle séquentiel
 model_rn <- keras_model_sequential()
-model_rn$add(layer_dense(units = 1, input_shape = c(118), activation = "linear"))
+model_rn$add(layer_dense(units = 1, input_shape = c(118), activation = "linear")) # commenter ceci pour le modele avec réduction de dimension préalable
+
+# model_rn$add(layer_dense(units = 1, input_shape = c(56), activation = "linear")) # Décommenter ceci pour le modele avec réduction de dimension préalable
 
 # rm(model_rn, history_perceptron)
 
@@ -1416,7 +1480,7 @@ rf_wf <- workflow() %>%
 
 rf_grid <- expand.grid(mtry= c(10, 20, 35, 55), # sqrt(112)≈11, donc autour de cette valeur
                        min_n= c(5, 10, 20, 50), # Réduit car RF gère bien le surapprentissage
-                       trees= c(100, 300, 500)) # Moins de variation, focus sur valeurs efficaces
+                       trees= c(500, 1000, 2000, 5000)) # Moins de variation, focus sur valeurs efficaces
 
 # visualisation des erreurs
 rf_resample <- rf_wf %>% tune_grid(resamples = blocs_5_3, grid = rf_grid,
@@ -1426,7 +1490,7 @@ rf_resample <- rf_wf %>% tune_grid(resamples = blocs_5_3, grid = rf_grid,
 best_parameter_rf <- rf_resample |>
   select_best(metric="rmse")
 
-
+# rm(rf_resample, best_parameter_rf, foret_finale)
 # Ajustement final
 foret_finale <- rf_wf %>%
   finalize_workflow(best_parameter_rf) %>%
@@ -1481,7 +1545,8 @@ model_rn <- keras_model_sequential()
 model_rn$add(
   layer_dense(
     units = 50,
-    input_shape = c(118),
+    input_shape = c(118), # commenter ceci pour le modele avec réduction de dimension préalable
+#    input_shape = c(56),# Décommenter ceci pour le modele avec réduction de dimension préalable
     activation = "relu",
     kernel_regularizer = keras$regularizers$l2(0.01)
   )
@@ -1730,8 +1795,9 @@ vip(xgb_adj_finale)
 models_pred_adjusted
 ```
 
-## Prédiction des financements des communes n'ayant pas demander de financement en 2024
 
+
+## Prédiction des financements des communes n'ayant pas demander de financement en 2024(Meilleur modèle avec réduction de dimension )
 
 ```{r}
 set.seed(1234)
@@ -1743,28 +1809,44 @@ df_preds_final_EDMD= data.frame(code_com= df_fonds_EDMD_non_finance %>% dplyr:: 
 data_EDMD_NF <- df_fonds_EDMD_non_finance %>% 
   dplyr:: select(-code_com)
 
-# Définition de l'arbre de décision (régression)
-tree_spec_final <- decision_tree(cost_complexity = 0.001,
-                                 min_n = 20) %>%
-  set_engine("rpart") %>%
+# Définition du modèle KNN (régression)
+knn_spec_adj_best <- nearest_neighbor(neighbors = 30,
+                                 weight_func = "rectangular",
+                                 dist_power = 3) %>%
+  set_engine("kknn") %>%
   set_mode("regression")
 
 # Workflow
-tree_wf_final <- workflow() %>%
-  add_model(tree_spec_final) %>%
+knn_wf_adj_best <- workflow() %>%
+  add_model(knn_spec_adj_best) %>%
   add_formula(cp_EDMD ~ .)
 
+
 # Ajustement direct sans validation croisée
-tree_final <- tree_wf_final %>%
+knn_adj_best <- knn_wf_adj_best %>%
   fit(data = df_fonds_EDMD_Finance)
 
 # Prédiction sur les données de test
-df_preds_final_EDMD[, "cp_EDMD_preds"] <- predict(tree_final, data_EDMD_NF) 
+df_preds_final_EDMD[, "cp_EDMD_preds"] <- predict(knn_adj_best, data_EDMD_NF) 
 
 ```
 
 
-# Cartographie des prédiction:
++ Statistique descriptive
+
+```{r}
+var_preds= df_preds_final_EDMD$cp_EDMD_preds
+
+par(mfrow=c(1,2), las=1)
+
+plot(sort(var_preds), col=rev(terrain.colors(length(var_preds))),pch=20, cex=.75, ylab='cp_EDMD_preds')
+
+hist(var_preds, main='', col=rev(terrain.colors(5)), xlab='cp_EDMD_preds')
+
+```
+
+
+# Cartographie des prédictions du meilleur modèle :
 
 ```{r}
 # Jointure des données 
@@ -1807,51 +1889,24 @@ ggplot(df_fonds_EDMD_for_carto_pred) +
 
 ggplot(df_fonds_EDMD_for_carto_pred) + 
   geom_sf(aes(fill = cp_EDMD_preds)) + 
-  scale_fill_continuous(low = "beige", high = couleurs_1) +
+  scale_fill_continuous(low = "lightgray", high = couleurs_1) +
   theme_void() + 
   coord_sf() 
 
-```
-
-# Autre modele de prédiction(spatiale)
-
-```{r}
-raster_planar<-st_rasterize(planar_sf_breizh) #créer un raster à partir de notre objet sf
-plot(raster_planar['cp_EDMD', ])
-```
-
-```{r}
-set.seed(1234)
-variable <-as.im(raster_planar['cp_EDMD']) # le raster a plusieurs variables, choisir le cp_EDMD
-
-modele_cp_EDMD<-ppm(ppp_points_breizh~ variable) #Modèle de poisson de notre processus ponctuel expliqué par le fonds_cp_EDMD
-modele_cp_EDMD 
-```
-
-```{r}
-#plot(effectfun(modele_cp_EDMD, "variable", se.fit = TRUE),legend = FALSE)
-plot(predict(modele_cp_EDMD), main = "Prédictions" ,col=col)
-```
-
-```{r}
-model_intercept <- ppm(ppp_points_breizh ~ 1)  #Null model
-anova(model_intercept, modele_cp_EDMD, test = "LRT") # Compare null to population model
 ```
 
 
 # Enregistrement de la base de données finale avec les prédiction
 
 ```{r}
-
-# df_fonds_EDMD= df_fonds_EDMD %>%
+# df_fonds_EDMD_save= df_fonds_EDMD %>%
 #   mutate(across(starts_with(c("ae_", "cp_")), ~ .x * 1000))
-
-# df_fonds_EDMD[,"cp_EDMD_preds"]= df_fonds_EDMD_for_carto_pred$cp_EDMD_preds *1000
-# df_fonds_EDMD[,"cp_EDMD_all"]= df_fonds_EDMD_for_carto_pred$cp_EDMD_all *1000
-
-# df_fonds_EDMD= df_fonds_EDMD%>%
-#   mutate(across(starts_with(c("cp_EDMD_preds", "cp_EDMD_all")), ~ round(.x, 1))) 
-# df_fonds_EDMD  %>%  # Exclure geometry et code_insee
-#   write_csv("data_cp_EDMD_pred.csv")
+# 
+# df_fonds_EDMD_save[,"cp_EDMD_preds"]= df_fonds_EDMD_for_carto_pred$cp_EDMD_preds *1000
+# df_fonds_EDMD_save[,"cp_EDMD_all"]= df_fonds_EDMD_for_carto_pred$cp_EDMD_all *1000
+# 
+# df_fonds_EDMD_save= df_fonds_EDMD_save%>%
+#   mutate(across(starts_with(c("cp_EDMD_preds", "cp_EDMD_all")), ~ round(.x, 1)))
+# df_fonds_EDMD_save  %>%  # Exclure geometry et code_insee
+#   write_csv("data_fonds_EDMD_pred.csv")
 ```
-
